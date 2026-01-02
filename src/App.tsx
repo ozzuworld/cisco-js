@@ -4,6 +4,7 @@ import { CssBaseline } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SnackbarProvider } from 'notistack'
 import { theme } from './theme'
+import { ErrorBoundary } from './components'
 import MainLayout from './layouts/MainLayout'
 import Dashboard from './pages/Dashboard'
 import Jobs from './pages/Jobs'
@@ -23,27 +24,29 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <SnackbarProvider
-          maxSnack={3}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          autoHideDuration={5000}
-        >
-          <CssBaseline />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<MainLayout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="jobs" element={<Jobs />} />
-                <Route path="profiles" element={<Profiles />} />
-                <Route path="settings" element={<Settings />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </SnackbarProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <SnackbarProvider
+            maxSnack={3}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            autoHideDuration={5000}
+          >
+            <CssBaseline />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<MainLayout />}>
+                  <Route index element={<Dashboard />} />
+                  <Route path="jobs" element={<Jobs />} />
+                  <Route path="profiles" element={<Profiles />} />
+                  <Route path="settings" element={<Settings />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </SnackbarProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 

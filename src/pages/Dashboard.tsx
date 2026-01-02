@@ -100,7 +100,7 @@ export default function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h3" color="info.main">
-              {jobsData?.items.filter(j => j.status === 'running').length || 0}
+              {(jobsData?.items || []).filter(j => j.status === 'running').length}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Running
@@ -110,7 +110,7 @@ export default function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h3" color="success.main">
-              {jobsData?.items.filter(j => j.status === 'completed').length || 0}
+              {(jobsData?.items || []).filter(j => j.status === 'completed').length}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Completed
