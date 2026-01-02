@@ -2,42 +2,26 @@ import { useState } from 'react'
 import { Box, Typography, Grid, Paper, Button } from '@mui/material'
 import { Add as AddIcon } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
-import { ConnectionForm, JobStatusCard, NodeList, LoadingSpinner } from '@/components'
-import { useDiscoverCluster, useJobs, useCancelJob, useDownloadAllLogs } from '@/hooks'
-import type { ClusterNode, ConnectionRequest } from '@/types'
+import { JobStatusCard, JobWizard, LoadingSpinner } from '@/components'
+import { useJobs, useCancelJob, useDownloadAllLogs } from '@/hooks'
 
 export default function Dashboard() {
-  const [showConnection, setShowConnection] = useState(false)
-  const [discoveredNodes, setDiscoveredNodes] = useState<ClusterNode[]>([])
+  const [showWizard, setShowWizard] = useState(false)
   const { enqueueSnackbar } = useSnackbar()
 
   // Fetch recent jobs (limit to first page)
   const { data: jobsData, isLoading: jobsLoading } = useJobs(1, 6)
-  const discoverMutation = useDiscoverCluster()
   const cancelMutation = useCancelJob()
   const downloadAllLogs = useDownloadAllLogs()
 
-  const handleConnect = async (data: ConnectionRequest) => {
-    try {
-      const result = await discoverMutation.mutateAsync(data)
-      setDiscoveredNodes(result.nodes)
-      enqueueSnackbar(
-        `Successfully discovered ${result.totalNodes} nodes from ${result.publisher}`,
-        {
-          variant: 'success',
-        }
-      )
-      setShowConnection(false)
-    } catch (error) {
-      enqueueSnackbar(error instanceof Error ? error.message : 'Failed to connect to CUCM', {
-        variant: 'error',
-      })
-    }
+  const handleJobCreated = (jobId: string) => {
+    enqueueSnackbar(`Job ${jobId} is now running`, { variant: 'success' })
   }
 
   const handleViewJob = (jobId: string) => {
+    // TODO: Navigate to job details page when implemented
     console.log('View job:', jobId)
-    enqueueSnackbar('Job details view coming in Sprint 4', { variant: 'info' })
+    enqueueSnackbar('Job details page coming soon', { variant: 'info' })
   }
 
   const handleCancelJob = async (jobId: string) => {
@@ -69,21 +53,13 @@ export default function Dashboard() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => setShowConnection(!showConnection)}
+          onClick={() => setShowWizard(true)}
         >
           New Job
         </Button>
       </Box>
 
-      {showConnection && (
-        <Box sx={{ mb: 4 }}>
-          <ConnectionForm
-            onSubmit={handleConnect}
-            isLoading={discoverMutation.isPending}
-            error={discoverMutation.error?.message}
-          />
-        </Box>
-      )}
+      <JobWizard open={showWizard} onClose={() => setShowWizard(false)} onSuccess={handleJobCreated} />
 
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -119,11 +95,11 @@ export default function Dashboard() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
-            <Typography variant="h3" color="text.secondary">
-              {discoveredNodes.length > 0 ? 1 : 0}
+            <Typography variant="h3" color="error.main">
+              {(jobsData?.items || []).filter(j => j.status === 'failed').length}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Clusters
+              Failed
             </Typography>
           </Paper>
         </Grid>
@@ -150,18 +126,8 @@ export default function Dashboard() {
         </Grid>
       ) : (
         <Typography color="text.secondary" sx={{ mb: 4 }}>
-          No jobs yet. Create your first job to get started.
+          No jobs yet. Click &quot;New Job&quot; to get started.
         </Typography>
-      )}
-
-      {/* Cluster Nodes */}
-      {discoveredNodes.length > 0 && (
-        <>
-          <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>
-            Last Discovered Nodes
-          </Typography>
-          <NodeList nodes={discoveredNodes} />
-        </>
       )}
     </Box>
   )
