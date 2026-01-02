@@ -115,13 +115,22 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
       return
     }
 
+    // Convert selected hostnames to IP addresses for backend
+    const nodeIps = wizardData.selectedNodes.map(hostname => {
+      const node = wizardData.discoveredNodes.find(n => n.hostname === hostname)
+      return node?.ipAddress || hostname // fallback to hostname if no IP found
+    })
+
+    console.log('Selected nodes (hostnames):', wizardData.selectedNodes)
+    console.log('Node IPs for backend:', nodeIps)
+
     try {
       const job = await createJobMutation.mutateAsync({
         publisher_host: wizardData.connection.hostname,
         username: wizardData.connection.username,
         password: wizardData.connection.password,
         port: wizardData.connection.port || 22,
-        nodes: wizardData.selectedNodes,
+        nodes: nodeIps,
         profile: wizardData.profile.name,
       })
 

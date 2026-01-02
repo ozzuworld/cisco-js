@@ -20,6 +20,7 @@ export const jobService = {
    * Create new job
    */
   async createJob(request: CreateJobRequest): Promise<Job> {
+    console.log('Creating job with request:', JSON.stringify(request, null, 2))
     return apiClient.post<Job>('/jobs', request)
   },
 

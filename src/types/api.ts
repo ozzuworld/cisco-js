@@ -3,7 +3,7 @@
 export interface ClusterNode {
   hostname: string
   ipAddress: string
-  role: 'publisher' | 'subscriber' | 'tftp' | 'cups'
+  role: 'publisher' | 'subscriber' | 'tftp' | 'cups' | string
   version?: string
   status: 'online' | 'offline' | 'unknown'
 }
