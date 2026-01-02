@@ -117,9 +117,12 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
 
     try {
       const job = await createJobMutation.mutateAsync({
-        connection: wizardData.connection,
-        profileId: wizardData.profile.id,
+        publisher_host: wizardData.connection.hostname,
+        username: wizardData.connection.username,
+        password: wizardData.connection.password,
+        port: wizardData.connection.port || 22,
         nodes: wizardData.selectedNodes,
+        profile: wizardData.profile.name,
       })
 
       enqueueSnackbar(`Job ${job.id} created successfully`, { variant: 'success' })

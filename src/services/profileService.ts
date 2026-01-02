@@ -14,22 +14,22 @@ export const profileService = {
     // Backend might return: { profiles: [...] } or just [...]
     if (Array.isArray(response)) {
       console.log('Profiles returned as array:', response)
-      // Transform to ensure id field exists
+      // Transform to ensure id field exists and map backend fields to frontend
       return response.map((profile: any, index: number) => ({
         ...profile,
         id: profile.id || profile.name || `profile-${index}`,
-        logTypes: profile.logTypes || profile.log_types || [],
+        logTypes: profile.logTypes || profile.log_types || profile.paths || [],
         isCustom: profile.isCustom ?? profile.is_custom ?? false,
       }))
     }
 
     if (response && typeof response === 'object' && Array.isArray(response.profiles)) {
       console.log('Profiles extracted from object.profiles:', response.profiles)
-      // Transform to ensure id field exists
+      // Transform to ensure id field exists and map backend fields to frontend
       const transformed = response.profiles.map((profile: any, index: number) => ({
         ...profile,
         id: profile.id || profile.name || `profile-${index}`,
-        logTypes: profile.logTypes || profile.log_types || [],
+        logTypes: profile.logTypes || profile.log_types || profile.paths || [],
         isCustom: profile.isCustom ?? profile.is_custom ?? false,
       }))
       console.log('Transformed profiles:', transformed)
@@ -41,11 +41,11 @@ export const profileService = {
       const profilesArray = Object.values(response)
       if (profilesArray.length > 0 && profilesArray.every(p => typeof p === 'object')) {
         console.log('Profiles extracted from object values:', profilesArray)
-        // Transform to ensure id field exists
+        // Transform to ensure id field exists and map backend fields to frontend
         return profilesArray.map((profile: any, index: number) => ({
           ...profile,
           id: profile.id || profile.name || `profile-${index}`,
-          logTypes: profile.logTypes || profile.log_types || [],
+          logTypes: profile.logTypes || profile.log_types || profile.paths || [],
           isCustom: profile.isCustom ?? profile.is_custom ?? false,
         }))
       }

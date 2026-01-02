@@ -136,9 +136,9 @@ export function ReviewStep({ data, onSubmit, onBack, isLoading }: ReviewStepProp
                   Log Types ({profile.logTypes.length})
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                  {profile.logTypes.map(logType => (
+                  {profile.logTypes.map((logType, index) => (
                     <Chip
-                      key={logType}
+                      key={`${logType}-${index}`}
                       icon={<LogIcon />}
                       label={logType}
                       size="small"

@@ -62,9 +62,23 @@ export interface ConnectionRequest {
 }
 
 export interface CreateJobRequest {
-  connection: ConnectionRequest
-  profileId: string
-  nodes?: string[]
+  publisher_host: string
+  username: string
+  password: string
+  port?: number
+  nodes: string[]
+  profile: string
+  options?: CollectionOptions
+}
+
+export interface CollectionOptions {
+  time_mode?: 'relative' | 'range'
+  reltime_minutes?: number
+  start_time?: string
+  end_time?: string
+  compress?: boolean
+  recurs?: boolean
+  match?: string
 }
 
 export interface ApiError {
