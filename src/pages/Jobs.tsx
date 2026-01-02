@@ -9,16 +9,18 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Button,
 } from '@mui/material'
-import { Search as SearchIcon } from '@mui/icons-material'
+import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
-import { JobStatusCard, EmptyState, LoadingSpinner } from '@/components'
+import { JobStatusCard, EmptyState, LoadingSpinner, JobWizard } from '@/components'
 import { useJobs, useCancelJob, useDownloadAllLogs } from '@/hooks'
 import type { JobStatus } from '@/types'
 
 export default function Jobs() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all')
+  const [showWizard, setShowWizard] = useState(false)
   const { enqueueSnackbar } = useSnackbar()
 
   // Fetch jobs from API
@@ -26,9 +28,14 @@ export default function Jobs() {
   const cancelMutation = useCancelJob()
   const downloadAllLogs = useDownloadAllLogs()
 
+  const handleJobCreated = (jobId: string) => {
+    enqueueSnackbar(`Job ${jobId} created successfully`, { variant: 'success' })
+  }
+
   const handleViewJob = (jobId: string) => {
+    // TODO: Navigate to job details page when implemented
     console.log('View job:', jobId)
-    enqueueSnackbar('Job details view coming in Sprint 4', { variant: 'info' })
+    enqueueSnackbar('Job details page coming soon', { variant: 'info' })
   }
 
   const handleCancelJob = async (jobId: string) => {
@@ -68,15 +75,24 @@ export default function Jobs() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Log Collection Jobs
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        View and manage all your log collection jobs
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box>
+          <Typography variant="h4" gutterBottom>
+            Log Collection Jobs
+          </Typography>
+          <Typography color="text.secondary">
+            View and manage all your log collection jobs
+          </Typography>
+        </Box>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowWizard(true)}>
+          New Job
+        </Button>
+      </Box>
+
+      <JobWizard open={showWizard} onClose={() => setShowWizard(false)} onSuccess={handleJobCreated} />
 
       {/* Filters */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, mt: 3 }}>
         <TextField
           placeholder="Search jobs..."
           value={searchQuery}
@@ -128,12 +144,11 @@ export default function Jobs() {
           title="No jobs found"
           description={
             jobsData?.total === 0
-              ? 'No jobs yet. Create your first job to get started.'
+              ? 'No jobs yet. Click "New Job" to get started.'
               : 'No jobs match your search criteria. Try adjusting your filters.'
           }
         />
       )}
-      <Typography color="text.secondary">View and manage your log collection jobs.</Typography>
     </Box>
   )
 }
