@@ -133,6 +133,7 @@ export default function Jobs() {
           }
         />
       )}
+      <Typography color="text.secondary">View and manage your log collection jobs.</Typography>
     </Box>
   )
 }

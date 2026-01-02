@@ -50,6 +50,10 @@ export default function Profiles() {
       ) : (
         <Typography color="text.secondary">No profiles available.</Typography>
       )}
+      <Typography variant="h4" gutterBottom>
+        Profiles
+      </Typography>
+      <Typography color="text.secondary">Manage log collection profiles.</Typography>
     </Box>
   )
 }
