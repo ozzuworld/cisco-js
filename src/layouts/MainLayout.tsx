@@ -17,6 +17,7 @@ import {
 } from '@mui/material'
 import {
   Menu as MenuIcon,
+  Home as HomeIcon,
   Dashboard as DashboardIcon,
   Work as WorkIcon,
   HealthAndSafety as HealthIcon,
@@ -35,7 +36,8 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+  { text: 'Home', icon: <HomeIcon />, path: '/' },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Jobs', icon: <WorkIcon />, path: '/jobs' },
   { text: 'Health', icon: <HealthIcon />, path: '/health' },
   { text: 'Profiles', icon: <FolderIcon />, path: '/profiles' },

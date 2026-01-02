@@ -6,9 +6,11 @@ import { SnackbarProvider } from 'notistack'
 import { theme } from './theme'
 import { ErrorBoundary } from './components'
 import MainLayout from './layouts/MainLayout'
+import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Jobs from './pages/Jobs'
 import JobDetails from './pages/JobDetails'
+import NewJob from './pages/NewJob'
 import Health from './pages/Health'
 import Profiles from './pages/Profiles'
 import Settings from './pages/Settings'
@@ -38,8 +40,10 @@ function App() {
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<MainLayout />}>
-                  <Route index element={<Dashboard />} />
+                  <Route index element={<Landing />} />
+                  <Route path="dashboard" element={<Dashboard />} />
                   <Route path="jobs" element={<Jobs />} />
+                  <Route path="jobs/new" element={<NewJob />} />
                   <Route path="jobs/:jobId" element={<JobDetails />} />
                   <Route path="health" element={<Health />} />
                   <Route path="profiles" element={<Profiles />} />
