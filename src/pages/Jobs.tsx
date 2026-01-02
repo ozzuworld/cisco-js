@@ -6,9 +6,7 @@ export default function Jobs() {
       <Typography variant="h4" gutterBottom>
         Jobs
       </Typography>
-      <Typography color="text.secondary">
-        View and manage your log collection jobs.
-      </Typography>
+      <Typography color="text.secondary">View and manage your log collection jobs.</Typography>
     </Box>
   )
 }

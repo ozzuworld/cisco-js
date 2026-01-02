@@ -6,9 +6,7 @@ export default function Profiles() {
       <Typography variant="h4" gutterBottom>
         Profiles
       </Typography>
-      <Typography color="text.secondary">
-        Manage log collection profiles.
-      </Typography>
+      <Typography color="text.secondary">Manage log collection profiles.</Typography>
     </Box>
   )
 }

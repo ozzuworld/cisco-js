@@ -64,7 +64,10 @@ export default function MainLayout() {
         <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
           CUCM Logs
         </Typography>
-        <IconButton onClick={handleDesktopDrawerToggle} sx={{ display: { xs: 'none', sm: 'block' } }}>
+        <IconButton
+          onClick={handleDesktopDrawerToggle}
+          sx={{ display: { xs: 'none', sm: 'block' } }}
+        >
           <ChevronLeftIcon />
         </IconButton>
       </Toolbar>
