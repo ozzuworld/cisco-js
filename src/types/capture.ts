@@ -4,6 +4,8 @@ export type CaptureStatus = 'pending' | 'running' | 'stopping' | 'completed' | '
 
 export type CaptureProtocol = 'ip' | 'arp' | 'rarp' | 'all'
 
+export type CaptureDeviceType = 'cucm' | 'csr1000v'
+
 // Filter for packet capture
 export interface CaptureFilter {
   host?: string        // Filter by host IP (bidirectional)
@@ -15,12 +17,13 @@ export interface CaptureFilter {
 
 // Request to start a packet capture
 export interface StartCaptureRequest {
-  host: string                    // CUCM node IP/FQDN
+  device_type?: CaptureDeviceType // Device type: cucm or csr1000v (default: cucm)
+  host: string                    // Device IP/FQDN
   port?: number                   // SSH port (default: 22)
   username: string                // SSH username
   password: string                // SSH password
   duration_sec: number            // Capture duration 10-600 seconds
-  interface?: string              // Network interface (default: "eth0")
+  interface?: string              // Network interface (cucm: eth0, csr1000v: GigabitEthernet1)
   filename?: string               // Custom filename (auto-generated if not provided)
   filter?: CaptureFilter          // Optional packet filter
   packet_count?: number           // Max packets 100-100000 (default: 100000)
@@ -30,6 +33,7 @@ export interface StartCaptureRequest {
 // Capture information
 export interface CaptureInfo {
   capture_id: string
+  device_type?: CaptureDeviceType
   status: CaptureStatus
   host: string
   port: number

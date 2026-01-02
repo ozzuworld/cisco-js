@@ -42,7 +42,7 @@ import {
 import { useSnackbar } from 'notistack'
 import { useCaptures, useStartCapture, useStopCapture, useDeleteCapture } from '@/hooks'
 import { captureService } from '@/services'
-import type { CaptureStatus, CaptureInfo, CaptureProtocol } from '@/types'
+import type { CaptureStatus, CaptureInfo, CaptureProtocol, CaptureDeviceType } from '@/types'
 
 const statusConfig: Record<CaptureStatus, { color: 'default' | 'info' | 'success' | 'error' | 'warning'; label: string }> = {
   pending: { color: 'default', label: 'Pending' },
@@ -61,15 +61,20 @@ export default function Captures() {
   const deleteCapture = useDeleteCapture()
 
   // Form state
+  const [deviceType, setDeviceType] = useState<CaptureDeviceType>('cucm')
   const [host, setHost] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [interfaceName, setInterfaceName] = useState('')
   const [duration, setDuration] = useState(60)
   const [showFilters, setShowFilters] = useState(false)
   const [filterHost, setFilterHost] = useState('')
   const [filterPort, setFilterPort] = useState<number | ''>('')
   const [filterProtocol, setFilterProtocol] = useState<CaptureProtocol>('ip')
+
+  // Interface hints based on device type
+  const interfaceHint = deviceType === 'cucm' ? 'eth0' : 'GigabitEthernet1'
 
   const handleStartCapture = async () => {
     if (!host || !username || !password) {
@@ -79,10 +84,12 @@ export default function Captures() {
 
     try {
       const request = {
+        device_type: deviceType,
         host,
         username,
         password,
         duration_sec: duration,
+        interface: interfaceName || undefined,
         filter: showFilters ? {
           host: filterHost || undefined,
           port: filterPort || undefined,
@@ -97,6 +104,7 @@ export default function Captures() {
       setHost('')
       setUsername('')
       setPassword('')
+      setInterfaceName('')
     } catch (error) {
       enqueueSnackbar(
         error instanceof Error ? error.message : 'Failed to start capture',
@@ -154,7 +162,7 @@ export default function Captures() {
             Packet Capture
           </Typography>
           <Typography color="text.secondary">
-            Capture network traffic from CUCM nodes for troubleshooting
+            Capture network traffic from CUCM, CUBE, and IOS-XE devices
           </Typography>
         </Box>
         <Tooltip title="Refresh">
@@ -174,6 +182,20 @@ export default function Captures() {
             <Divider sx={{ my: 2 }} />
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <FormControl fullWidth>
+                <InputLabel>Device Type</InputLabel>
+                <Select
+                  value={deviceType}
+                  label="Device Type"
+                  onChange={e => {
+                    setDeviceType(e.target.value as CaptureDeviceType)
+                    setInterfaceName('') // Reset interface when device type changes
+                  }}
+                >
+                  <MenuItem value="cucm">CUCM / UC Servers</MenuItem>
+                  <MenuItem value="csr1000v">CUBE / IOS-XE Routers</MenuItem>
+                </Select>
+              </FormControl>
               <TextField
                 label="Target Host"
                 value={host}
@@ -205,6 +227,14 @@ export default function Captures() {
                     </InputAdornment>
                   ),
                 }}
+              />
+              <TextField
+                label="Interface"
+                value={interfaceName}
+                onChange={e => setInterfaceName(e.target.value)}
+                placeholder={interfaceHint}
+                helperText={`Default: ${interfaceHint}`}
+                fullWidth
               />
 
               <Box>
