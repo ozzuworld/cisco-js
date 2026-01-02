@@ -19,8 +19,11 @@ export function ProfileSelectionStep({
   const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>(initialProfile?.id)
   const { data: profiles, isLoading, error } = useProfiles()
 
+  // Ensure profiles is always an array
+  const profilesArray = Array.isArray(profiles) ? profiles : []
+
   const handleNext = () => {
-    const profile = profiles?.find(p => p.id === selectedProfileId)
+    const profile = profilesArray.find(p => p.id === selectedProfileId)
     if (profile) {
       onNext(profile)
     }
@@ -53,7 +56,7 @@ export function ProfileSelectionStep({
       </Typography>
 
       <ProfileSelector
-        profiles={profiles || []}
+        profiles={profilesArray}
         selectedProfileId={selectedProfileId}
         onSelect={setSelectedProfileId}
       />

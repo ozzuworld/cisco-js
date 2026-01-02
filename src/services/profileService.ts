@@ -6,7 +6,21 @@ export const profileService = {
    * Get all available log profiles
    */
   async getProfiles(): Promise<LogProfile[]> {
-    return apiClient.get<LogProfile[]>('/profiles')
+    const response = await apiClient.get<any>('/profiles')
+
+    // Handle different response formats from backend
+    // Backend might return: { profiles: [...] } or just [...]
+    if (Array.isArray(response)) {
+      return response
+    }
+
+    if (response && typeof response === 'object' && Array.isArray(response.profiles)) {
+      return response.profiles
+    }
+
+    // Fallback to empty array if format is unexpected
+    console.error('Unexpected profiles response format:', response)
+    return []
   },
 
   /**

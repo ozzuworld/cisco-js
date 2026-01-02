@@ -12,9 +12,12 @@ export default function Profiles() {
   // Fetch profiles from API
   const { data: profiles, isLoading } = useProfiles()
 
+  // Ensure profiles is always an array
+  const profilesArray = Array.isArray(profiles) ? profiles : []
+
   const handleSelectProfile = (profileId: string) => {
     setSelectedProfileId(profileId)
-    enqueueSnackbar(`Selected profile: ${profiles?.find(p => p.id === profileId)?.name}`, {
+    enqueueSnackbar(`Selected profile: ${profilesArray.find(p => p.id === profileId)?.name}`, {
       variant: 'info',
     })
   }
@@ -41,9 +44,9 @@ export default function Profiles() {
 
       {isLoading ? (
         <LoadingSpinner message="Loading profiles..." />
-      ) : profiles && profiles.length > 0 ? (
+      ) : profilesArray.length > 0 ? (
         <ProfileSelector
-          profiles={profiles}
+          profiles={profilesArray}
           selectedProfileId={selectedProfileId}
           onSelect={handleSelectProfile}
         />
