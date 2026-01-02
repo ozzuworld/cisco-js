@@ -16,6 +16,7 @@ import ConnectionForm from './ConnectionForm'
 import { NodeSelectionStep } from './wizard/NodeSelectionStep'
 import { ProfileSelectionStep } from './wizard/ProfileSelectionStep'
 import { ReviewStep } from './wizard/ReviewStep'
+import { JobProgressStep } from './wizard/JobProgressStep'
 import { useDiscoverCluster, useCreateJob } from '@/hooks'
 import type { ConnectionRequest, ClusterNode, LogProfile } from '@/types'
 
@@ -30,9 +31,10 @@ interface WizardData {
   discoveredNodes: ClusterNode[]
   selectedNodes: string[]
   profile: LogProfile | null
+  createdJobId: string | null
 }
 
-const steps = ['Connect to CUCM', 'Select Nodes', 'Choose Profile', 'Review & Submit']
+const steps = ['Connect to CUCM', 'Select Nodes', 'Choose Profile', 'Review & Submit', 'Collecting Logs']
 
 export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
   const [activeStep, setActiveStep] = useState(0)
@@ -41,6 +43,7 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
     discoveredNodes: [],
     selectedNodes: [],
     profile: null,
+    createdJobId: null,
   })
 
   const { enqueueSnackbar } = useSnackbar()
@@ -62,6 +65,7 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
       discoveredNodes: [],
       selectedNodes: [],
       profile: null,
+      createdJobId: null,
     })
   }
 
@@ -134,14 +138,22 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
         profile: wizardData.profile.name,
       })
 
-      enqueueSnackbar(`Job ${job.id} created successfully`, { variant: 'success' })
-      handleCloseDialog()
+      enqueueSnackbar(`Job ${job.id} created - collecting logs...`, { variant: 'success' })
+
+      // Store job ID and move to progress step
+      setWizardData(prev => ({ ...prev, createdJobId: job.id }))
+      handleNext()
       onSuccess?.(job.id)
     } catch (error) {
       enqueueSnackbar(error instanceof Error ? error.message : 'Failed to create job', {
         variant: 'error',
       })
     }
+  }
+
+  // Handle completion from progress step
+  const handleProgressComplete = () => {
+    handleCloseDialog()
   }
 
   const renderStepContent = (step: number) => {
@@ -181,6 +193,13 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
             isLoading={createJobMutation.isPending}
           />
         )
+      case 4:
+        return wizardData.createdJobId ? (
+          <JobProgressStep
+            jobId={wizardData.createdJobId}
+            onClose={handleProgressComplete}
+          />
+        ) : null
       default:
         return null
     }
