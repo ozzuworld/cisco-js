@@ -78,10 +78,7 @@ export default function ProfileSelector({
                     position: 'relative',
                   }}
                 >
-                  <CardActionArea
-                    onClick={() => handleProfileClick(profile)}
-                    disabled={isLoading}
-                  >
+                  <CardActionArea onClick={() => handleProfileClick(profile)} disabled={isLoading}>
                     <CardContent>
                       {selectedProfileId === profile.id && (
                         <CheckCircle
@@ -139,10 +136,7 @@ export default function ProfileSelector({
                     position: 'relative',
                   }}
                 >
-                  <CardActionArea
-                    onClick={() => handleProfileClick(profile)}
-                    disabled={isLoading}
-                  >
+                  <CardActionArea onClick={() => handleProfileClick(profile)} disabled={isLoading}>
                     <CardContent>
                       {selectedProfileId === profile.id && (
                         <CheckCircle
@@ -185,7 +179,9 @@ export default function ProfileSelector({
       )}
 
       {profiles.length === 0 && (
-        <Alert severity="info">No profiles available. Create a custom profile to get started.</Alert>
+        <Alert severity="info">
+          No profiles available. Create a custom profile to get started.
+        </Alert>
       )}
 
       {/* Profile Details Dialog */}

@@ -21,15 +21,17 @@ export default function Dashboard() {
     try {
       const result = await discoverMutation.mutateAsync(data)
       setDiscoveredNodes(result.nodes)
-      enqueueSnackbar(`Successfully discovered ${result.totalNodes} nodes from ${result.publisher}`, {
-        variant: 'success',
-      })
+      enqueueSnackbar(
+        `Successfully discovered ${result.totalNodes} nodes from ${result.publisher}`,
+        {
+          variant: 'success',
+        }
+      )
       setShowConnection(false)
     } catch (error) {
-      enqueueSnackbar(
-        error instanceof Error ? error.message : 'Failed to connect to CUCM',
-        { variant: 'error' }
-      )
+      enqueueSnackbar(error instanceof Error ? error.message : 'Failed to connect to CUCM', {
+        variant: 'error',
+      })
     }
   }
 
@@ -43,10 +45,9 @@ export default function Dashboard() {
       await cancelMutation.mutateAsync(jobId)
       enqueueSnackbar('Job cancelled successfully', { variant: 'success' })
     } catch (error) {
-      enqueueSnackbar(
-        error instanceof Error ? error.message : 'Failed to cancel job',
-        { variant: 'error' }
-      )
+      enqueueSnackbar(error instanceof Error ? error.message : 'Failed to cancel job', {
+        variant: 'error',
+      })
     }
   }
 
@@ -55,10 +56,9 @@ export default function Dashboard() {
       await downloadAllLogs(jobId)
       enqueueSnackbar('Logs download started', { variant: 'success' })
     } catch (error) {
-      enqueueSnackbar(
-        error instanceof Error ? error.message : 'Failed to download logs',
-        { variant: 'error' }
-      )
+      enqueueSnackbar(error instanceof Error ? error.message : 'Failed to download logs', {
+        variant: 'error',
+      })
     }
   }
 

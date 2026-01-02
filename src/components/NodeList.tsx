@@ -28,10 +28,7 @@ interface NodeListProps {
 type Order = 'asc' | 'desc'
 type OrderBy = keyof ClusterNode
 
-const roleColors: Record<
-  ClusterNode['role'],
-  'primary' | 'secondary' | 'info' | 'warning'
-> = {
+const roleColors: Record<ClusterNode['role'], 'primary' | 'secondary' | 'info' | 'warning'> = {
   publisher: 'primary',
   subscriber: 'secondary',
   tftp: 'info',
@@ -176,9 +173,7 @@ export default function NodeList({
                 <TableRow
                   key={node.hostname}
                   hover
-                  onClick={
-                    selectable ? () => handleSelectNode(node.hostname) : undefined
-                  }
+                  onClick={selectable ? () => handleSelectNode(node.hostname) : undefined}
                   role={selectable ? 'checkbox' : undefined}
                   selected={isItemSelected}
                   sx={{ cursor: selectable ? 'pointer' : 'default' }}
@@ -209,9 +204,7 @@ export default function NodeList({
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Tooltip title={node.status}>
-                      {statusIcons[node.status]}
-                    </Tooltip>
+                    <Tooltip title={node.status}>{statusIcons[node.status]}</Tooltip>
                   </TableCell>
                 </TableRow>
               )

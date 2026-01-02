@@ -36,10 +36,9 @@ export default function Jobs() {
       await cancelMutation.mutateAsync(jobId)
       enqueueSnackbar('Job cancelled successfully', { variant: 'success' })
     } catch (error) {
-      enqueueSnackbar(
-        error instanceof Error ? error.message : 'Failed to cancel job',
-        { variant: 'error' }
-      )
+      enqueueSnackbar(error instanceof Error ? error.message : 'Failed to cancel job', {
+        variant: 'error',
+      })
     }
   }
 
@@ -48,10 +47,9 @@ export default function Jobs() {
       await downloadAllLogs(jobId)
       enqueueSnackbar('Logs download started', { variant: 'success' })
     } catch (error) {
-      enqueueSnackbar(
-        error instanceof Error ? error.message : 'Failed to download logs',
-        { variant: 'error' }
-      )
+      enqueueSnackbar(error instanceof Error ? error.message : 'Failed to download logs', {
+        variant: 'error',
+      })
     }
   }
 

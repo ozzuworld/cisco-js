@@ -94,7 +94,9 @@ export default function JobStatusCard({ job, onView, onCancel, onDownload }: Job
   return (
     <Card elevation={2} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardContent sx={{ flexGrow: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+        <Box
+          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}
+        >
           <Box>
             <Typography variant="h6" component="div" gutterBottom>
               {job.clusterName}
@@ -182,12 +184,7 @@ export default function JobStatusCard({ job, onView, onCancel, onDownload }: Job
           )}
         </Box>
         {canCancel && (
-          <Button
-            size="small"
-            startIcon={<Stop />}
-            color="error"
-            onClick={() => onCancel(job.id)}
-          >
+          <Button size="small" startIcon={<Stop />} color="error" onClick={() => onCancel(job.id)}>
             Cancel
           </Button>
         )}

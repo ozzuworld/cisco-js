@@ -6,9 +6,7 @@ export default function Settings() {
       <Typography variant="h4" gutterBottom>
         Settings
       </Typography>
-      <Typography color="text.secondary">
-        Configure application settings.
-      </Typography>
+      <Typography color="text.secondary">Configure application settings.</Typography>
     </Box>
   )
 }

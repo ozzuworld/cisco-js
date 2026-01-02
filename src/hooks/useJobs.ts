@@ -15,7 +15,7 @@ export function useJob(jobId: string, enabled = true) {
     queryKey: ['job', jobId],
     queryFn: () => jobService.getJob(jobId),
     enabled,
-    refetchInterval: (query) => {
+    refetchInterval: query => {
       // Poll every 3 seconds if job is running
       const job = query.state.data
       return job?.status === 'running' ? 3000 : false

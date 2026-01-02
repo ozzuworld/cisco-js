@@ -23,7 +23,7 @@ export function useCreateProfile() {
   const queryClient = useQueryClient()
 
   return useMutation<LogProfile, Error, Omit<LogProfile, 'id' | 'isCustom'>>({
-    mutationFn: (profile) => profileService.createProfile(profile),
+    mutationFn: profile => profileService.createProfile(profile),
     onSuccess: () => {
       // Invalidate profiles list to refetch
       queryClient.invalidateQueries({ queryKey: ['profiles'] })

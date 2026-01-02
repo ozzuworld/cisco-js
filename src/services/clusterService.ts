@@ -12,7 +12,9 @@ export const clusterService = {
   /**
    * Test connection to CUCM
    */
-  async testConnection(connection: ConnectionRequest): Promise<{ success: boolean; message: string }> {
+  async testConnection(
+    connection: ConnectionRequest
+  ): Promise<{ success: boolean; message: string }> {
     return apiClient.post('/api/connection/test', connection)
   },
 }
