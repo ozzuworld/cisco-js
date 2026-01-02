@@ -1,0 +1,82 @@
+// API Response Types based on CUCM Backend
+
+export interface ClusterNode {
+  hostname: string
+  ipAddress: string
+  role: 'publisher' | 'subscriber' | 'tftp' | 'cups'
+  version?: string
+  status: 'online' | 'offline' | 'unknown'
+}
+
+export interface DiscoverResponse {
+  publisher: string
+  nodes: ClusterNode[]
+  totalNodes: number
+  discoveredAt: string
+}
+
+export interface LogProfile {
+  id: string
+  name: string
+  description: string
+  logTypes: string[]
+  isCustom: boolean
+}
+
+export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+
+export interface Job {
+  id: string
+  clusterId: string
+  clusterName: string
+  profileId: string
+  profileName: string
+  status: JobStatus
+  createdAt: string
+  startedAt?: string
+  completedAt?: string
+  duration?: number
+  nodes: string[]
+  progress?: number
+  error?: string
+}
+
+export interface JobDetails extends Job {
+  transcript: string[]
+  logs: LogFile[]
+}
+
+export interface LogFile {
+  filename: string
+  size: number
+  path: string
+  nodeHostname: string
+  collectedAt: string
+}
+
+export interface ConnectionRequest {
+  hostname: string
+  username: string
+  password: string
+  port?: number
+}
+
+export interface CreateJobRequest {
+  connection: ConnectionRequest
+  profileId: string
+  nodes?: string[]
+}
+
+export interface ApiError {
+  message: string
+  code: string
+  details?: Record<string, unknown>
+}
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
