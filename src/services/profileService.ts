@@ -8,14 +8,27 @@ export const profileService = {
   async getProfiles(): Promise<LogProfile[]> {
     const response = await apiClient.get<any>('/profiles')
 
+    console.log('Profiles API Response:', response)
+
     // Handle different response formats from backend
     // Backend might return: { profiles: [...] } or just [...]
     if (Array.isArray(response)) {
+      console.log('Profiles returned as array:', response)
       return response
     }
 
     if (response && typeof response === 'object' && Array.isArray(response.profiles)) {
+      console.log('Profiles extracted from object.profiles:', response.profiles)
       return response.profiles
+    }
+
+    if (response && typeof response === 'object') {
+      // Try to extract profiles from object keys
+      const profilesArray = Object.values(response)
+      if (profilesArray.length > 0 && profilesArray.every(p => typeof p === 'object')) {
+        console.log('Profiles extracted from object values:', profilesArray)
+        return profilesArray as LogProfile[]
+      }
     }
 
     // Fallback to empty array if format is unexpected

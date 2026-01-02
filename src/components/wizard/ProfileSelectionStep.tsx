@@ -22,11 +22,23 @@ export function ProfileSelectionStep({
   // Ensure profiles is always an array
   const profilesArray = Array.isArray(profiles) ? profiles : []
 
+  console.log('ProfileSelectionStep - Profiles:', profilesArray)
+  console.log('ProfileSelectionStep - Selected ID:', selectedProfileId)
+
   const handleNext = () => {
+    console.log('Attempting to proceed with profile ID:', selectedProfileId)
     const profile = profilesArray.find(p => p.id === selectedProfileId)
+    console.log('Found profile:', profile)
     if (profile) {
       onNext(profile)
+    } else {
+      console.error('No profile found with ID:', selectedProfileId)
     }
+  }
+
+  const handleSelectProfile = (profileId: string) => {
+    console.log('Profile selected:', profileId)
+    setSelectedProfileId(profileId)
   }
 
   if (isLoading) {
@@ -58,7 +70,7 @@ export function ProfileSelectionStep({
       <ProfileSelector
         profiles={profilesArray}
         selectedProfileId={selectedProfileId}
-        onSelect={setSelectedProfileId}
+        onSelect={handleSelectProfile}
       />
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
