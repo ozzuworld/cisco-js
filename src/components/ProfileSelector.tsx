@@ -97,7 +97,7 @@ export default function ProfileSelector({
                         {profile.description}
                       </Typography>
                       <Chip
-                        label={`${profile.logTypes.length} log types`}
+                        label={`${profile.logTypes?.length || 0} log types`}
                         size="small"
                         color="primary"
                         variant="outlined"
@@ -155,7 +155,7 @@ export default function ProfileSelector({
                         {profile.description}
                       </Typography>
                       <Chip
-                        label={`${profile.logTypes.length} log types`}
+                        label={`${profile.logTypes?.length || 0} log types`}
                         size="small"
                         color="secondary"
                         variant="outlined"
@@ -195,7 +195,7 @@ export default function ProfileSelector({
             Included Log Types:
           </Typography>
           <List dense>
-            {selectedProfile?.logTypes.map((logType, index) => (
+            {selectedProfile?.logTypes?.map((logType, index) => (
               <ListItem key={index}>
                 <ListItemText primary={logType} />
               </ListItem>

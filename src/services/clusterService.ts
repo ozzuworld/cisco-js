@@ -6,7 +6,14 @@ export const clusterService = {
    * Discover CUCM cluster nodes
    */
   async discover(connection: ConnectionRequest): Promise<DiscoverResponse> {
-    return apiClient.post<DiscoverResponse>('/api/discover', connection)
+    // Transform frontend field names to match backend API
+    const payload = {
+      publisher_host: connection.hostname,
+      username: connection.username,
+      password: connection.password,
+      port: connection.port || 22,
+    }
+    return apiClient.post<DiscoverResponse>('/discover-nodes', payload)
   },
 
   /**
@@ -15,6 +22,12 @@ export const clusterService = {
   async testConnection(
     connection: ConnectionRequest
   ): Promise<{ success: boolean; message: string }> {
-    return apiClient.post('/api/connection/test', connection)
+    const payload = {
+      publisher_host: connection.hostname,
+      username: connection.username,
+      password: connection.password,
+      port: connection.port || 22,
+    }
+    return apiClient.post('/connection/test', payload)
   },
 }
