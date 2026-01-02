@@ -19,6 +19,7 @@ import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Work as WorkIcon,
+  HealthAndSafety as HealthIcon,
   Folder as FolderIcon,
   Settings as SettingsIcon,
   ChevronLeft as ChevronLeftIcon,
@@ -36,6 +37,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Jobs', icon: <WorkIcon />, path: '/jobs' },
+  { text: 'Health', icon: <HealthIcon />, path: '/health' },
   { text: 'Profiles', icon: <FolderIcon />, path: '/profiles' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ]

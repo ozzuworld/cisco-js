@@ -4,6 +4,7 @@ import { Box, Typography, Grid, Paper, Button, LinearProgress } from '@mui/mater
 import { Add as AddIcon, TrendingUp } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { JobStatusCard, JobWizard, LoadingSpinner } from '@/components'
+import { DashboardHealthWidget } from '@/components/health'
 import { useJobs, useCancelJob, useDownloadAllLogs } from '@/hooks'
 
 export default function Dashboard() {
@@ -116,25 +117,32 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      {/* Success Rate */}
-      <Paper sx={{ p: 2, mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <TrendingUp color="primary" />
-          <Typography variant="subtitle1">Success Rate</Typography>
-          <Typography variant="h6" sx={{ ml: 'auto' }}>
-            {successRate}%
-          </Typography>
-        </Box>
-        <LinearProgress
-          variant="determinate"
-          value={successRate}
-          color={successRate >= 80 ? 'success' : successRate >= 50 ? 'warning' : 'error'}
-          sx={{ height: 8, borderRadius: 4 }}
-        />
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-          Based on {(jobsData?.items || []).filter(j => j.status === 'completed' || j.status === 'failed').length} completed jobs
-        </Typography>
-      </Paper>
+      {/* Success Rate & Health Widget */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={8}>
+          <Paper sx={{ p: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <TrendingUp color="primary" />
+              <Typography variant="subtitle1">Success Rate</Typography>
+              <Typography variant="h6" sx={{ ml: 'auto' }}>
+                {successRate}%
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={successRate}
+              color={successRate >= 80 ? 'success' : successRate >= 50 ? 'warning' : 'error'}
+              sx={{ height: 8, borderRadius: 4 }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Based on {(jobsData?.items || []).filter(j => j.status === 'completed' || j.status === 'failed').length} completed jobs
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <DashboardHealthWidget />
+        </Grid>
+      </Grid>
 
       {/* Recent Jobs */}
       <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>

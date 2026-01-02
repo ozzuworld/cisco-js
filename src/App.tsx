@@ -9,6 +9,7 @@ import MainLayout from './layouts/MainLayout'
 import Dashboard from './pages/Dashboard'
 import Jobs from './pages/Jobs'
 import JobDetails from './pages/JobDetails'
+import Health from './pages/Health'
 import Profiles from './pages/Profiles'
 import Settings from './pages/Settings'
 
@@ -40,6 +41,7 @@ function App() {
                   <Route index element={<Dashboard />} />
                   <Route path="jobs" element={<Jobs />} />
                   <Route path="jobs/:jobId" element={<JobDetails />} />
+                  <Route path="health" element={<Health />} />
                   <Route path="profiles" element={<Profiles />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>
