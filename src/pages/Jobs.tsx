@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Box,
   Typography,
@@ -11,99 +11,62 @@ import {
   InputLabel,
 } from '@mui/material'
 import { Search as SearchIcon } from '@mui/icons-material'
-import { JobStatusCard, EmptyState } from '@/components'
-import type { Job, JobStatus } from '@/types'
-
-// Sample jobs for demonstration
-const allJobs: Job[] = [
-  {
-    id: 'job-001',
-    clusterId: 'cluster-1',
-    clusterName: 'CUCM Production',
-    profileId: 'basic',
-    profileName: 'Basic Troubleshooting',
-    status: 'running',
-    createdAt: new Date().toISOString(),
-    startedAt: new Date().toISOString(),
-    nodes: ['cucm-pub.example.com', 'cucm-sub1.example.com'],
-    progress: 45,
-  },
-  {
-    id: 'job-002',
-    clusterId: 'cluster-1',
-    clusterName: 'CUCM Production',
-    profileId: 'call-processing',
-    profileName: 'Call Processing',
-    status: 'completed',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    startedAt: new Date(Date.now() - 3600000).toISOString(),
-    completedAt: new Date(Date.now() - 1800000).toISOString(),
-    duration: 1800,
-    nodes: ['cucm-pub.example.com'],
-  },
-  {
-    id: 'job-003',
-    clusterId: 'cluster-2',
-    clusterName: 'CUCM Testing',
-    profileId: 'security',
-    profileName: 'Security Audit',
-    status: 'failed',
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    startedAt: new Date(Date.now() - 7200000).toISOString(),
-    completedAt: new Date(Date.now() - 5400000).toISOString(),
-    duration: 1800,
-    nodes: ['cucm-test.example.com'],
-    error: 'Connection timeout',
-  },
-  {
-    id: 'job-004',
-    clusterId: 'cluster-1',
-    clusterName: 'CUCM Production',
-    profileId: 'performance',
-    profileName: 'Performance Analysis',
-    status: 'completed',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    startedAt: new Date(Date.now() - 86400000).toISOString(),
-    completedAt: new Date(Date.now() - 82800000).toISOString(),
-    duration: 3600,
-    nodes: ['cucm-pub.example.com', 'cucm-sub1.example.com', 'cucm-sub2.example.com'],
-  },
-  {
-    id: 'job-005',
-    clusterId: 'cluster-1',
-    clusterName: 'CUCM Production',
-    profileId: 'basic',
-    profileName: 'Basic Troubleshooting',
-    status: 'cancelled',
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    nodes: ['cucm-pub.example.com'],
-  },
-]
+import { useSnackbar } from 'notistack'
+import { JobStatusCard, EmptyState, LoadingSpinner } from '@/components'
+import { useJobs, useCancelJob, useDownloadAllLogs } from '@/hooks'
+import type { JobStatus } from '@/types'
 
 export default function Jobs() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all')
+  const { enqueueSnackbar } = useSnackbar()
+
+  // Fetch jobs from API
+  const { data: jobsData, isLoading } = useJobs(1, 100)
+  const cancelMutation = useCancelJob()
+  const downloadAllLogs = useDownloadAllLogs()
 
   const handleViewJob = (jobId: string) => {
     console.log('View job:', jobId)
+    enqueueSnackbar('Job details view coming in Sprint 4', { variant: 'info' })
   }
 
-  const handleCancelJob = (jobId: string) => {
-    console.log('Cancel job:', jobId)
+  const handleCancelJob = async (jobId: string) => {
+    try {
+      await cancelMutation.mutateAsync(jobId)
+      enqueueSnackbar('Job cancelled successfully', { variant: 'success' })
+    } catch (error) {
+      enqueueSnackbar(
+        error instanceof Error ? error.message : 'Failed to cancel job',
+        { variant: 'error' }
+      )
+    }
   }
 
-  const handleDownloadLogs = (jobId: string) => {
-    console.log('Download logs:', jobId)
+  const handleDownloadLogs = async (jobId: string) => {
+    try {
+      await downloadAllLogs(jobId)
+      enqueueSnackbar('Logs download started', { variant: 'success' })
+    } catch (error) {
+      enqueueSnackbar(
+        error instanceof Error ? error.message : 'Failed to download logs',
+        { variant: 'error' }
+      )
+    }
   }
 
-  const filteredJobs = allJobs.filter(job => {
-    const matchesSearch =
-      job.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.clusterName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.profileName.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || job.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const filteredJobs = useMemo(() => {
+    if (!jobsData?.items) return []
+
+    return jobsData.items.filter(job => {
+      const matchesSearch =
+        job.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.clusterName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.profileName.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesStatus = statusFilter === 'all' || job.status === statusFilter
+      return matchesSearch && matchesStatus
+    })
+  }, [jobsData, searchQuery, statusFilter])
 
   return (
     <Box>
@@ -147,7 +110,9 @@ export default function Jobs() {
       </Box>
 
       {/* Jobs Grid */}
-      {filteredJobs.length > 0 ? (
+      {isLoading ? (
+        <LoadingSpinner message="Loading jobs..." />
+      ) : filteredJobs.length > 0 ? (
         <Grid container spacing={2}>
           {filteredJobs.map(job => (
             <Grid item xs={12} md={6} lg={4} key={job.id}>
@@ -163,7 +128,11 @@ export default function Jobs() {
       ) : (
         <EmptyState
           title="No jobs found"
-          description="No jobs match your search criteria. Try adjusting your filters."
+          description={
+            jobsData?.total === 0
+              ? 'No jobs yet. Create your first job to get started.'
+              : 'No jobs match your search criteria. Try adjusting your filters.'
+          }
         />
       )}
     </Box>

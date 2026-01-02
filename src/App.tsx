@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 import { CssBaseline } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { SnackbarProvider } from 'notistack'
 import { theme } from './theme'
 import MainLayout from './layouts/MainLayout'
 import Dashboard from './pages/Dashboard'
@@ -24,17 +25,23 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<MainLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="jobs" element={<Jobs />} />
-              <Route path="profiles" element={<Profiles />} />
-              <Route path="settings" element={<Settings />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+        <SnackbarProvider
+          maxSnack={3}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          autoHideDuration={5000}
+        >
+          <CssBaseline />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="jobs" element={<Jobs />} />
+                <Route path="profiles" element={<Profiles />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </SnackbarProvider>
       </ThemeProvider>
     </QueryClientProvider>
   )

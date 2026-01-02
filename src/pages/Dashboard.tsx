@@ -1,81 +1,65 @@
 import { useState } from 'react'
 import { Box, Typography, Grid, Paper, Button } from '@mui/material'
 import { Add as AddIcon } from '@mui/icons-material'
-import { ConnectionForm, JobStatusCard, NodeList } from '@/components'
-import type { Job, ClusterNode, ConnectionRequest } from '@/types'
-
-// Sample data for demonstration
-const sampleJobs: Job[] = [
-  {
-    id: 'job-001',
-    clusterId: 'cluster-1',
-    clusterName: 'CUCM Production',
-    profileId: 'basic',
-    profileName: 'Basic Troubleshooting',
-    status: 'running',
-    createdAt: new Date().toISOString(),
-    startedAt: new Date().toISOString(),
-    nodes: ['cucm-pub.example.com', 'cucm-sub1.example.com'],
-    progress: 45,
-  },
-  {
-    id: 'job-002',
-    clusterId: 'cluster-1',
-    clusterName: 'CUCM Production',
-    profileId: 'call-processing',
-    profileName: 'Call Processing',
-    status: 'completed',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    startedAt: new Date(Date.now() - 3600000).toISOString(),
-    completedAt: new Date(Date.now() - 1800000).toISOString(),
-    duration: 1800,
-    nodes: ['cucm-pub.example.com'],
-  },
-]
-
-const sampleNodes: ClusterNode[] = [
-  {
-    hostname: 'cucm-pub.example.com',
-    ipAddress: '10.10.10.10',
-    role: 'publisher',
-    version: '14.0.1.12000-1',
-    status: 'online',
-  },
-  {
-    hostname: 'cucm-sub1.example.com',
-    ipAddress: '10.10.10.11',
-    role: 'subscriber',
-    version: '14.0.1.12000-1',
-    status: 'online',
-  },
-  {
-    hostname: 'cucm-sub2.example.com',
-    ipAddress: '10.10.10.12',
-    role: 'subscriber',
-    version: '14.0.1.12000-1',
-    status: 'online',
-  },
-]
+import { useSnackbar } from 'notistack'
+import { ConnectionForm, JobStatusCard, NodeList, LoadingSpinner } from '@/components'
+import { useDiscoverCluster, useJobs, useCancelJob, useDownloadAllLogs } from '@/hooks'
+import type { ClusterNode, ConnectionRequest } from '@/types'
 
 export default function Dashboard() {
   const [showConnection, setShowConnection] = useState(false)
+  const [discoveredNodes, setDiscoveredNodes] = useState<ClusterNode[]>([])
+  const { enqueueSnackbar } = useSnackbar()
+
+  // Fetch recent jobs (limit to first page)
+  const { data: jobsData, isLoading: jobsLoading } = useJobs(1, 6)
+  const discoverMutation = useDiscoverCluster()
+  const cancelMutation = useCancelJob()
+  const downloadAllLogs = useDownloadAllLogs()
 
   const handleConnect = async (data: ConnectionRequest) => {
-    console.log('Connecting to CUCM:', data)
-    // This will be connected to the backend in Sprint 3
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    try {
+      const result = await discoverMutation.mutateAsync(data)
+      setDiscoveredNodes(result.nodes)
+      enqueueSnackbar(`Successfully discovered ${result.totalNodes} nodes from ${result.publisher}`, {
+        variant: 'success',
+      })
+      setShowConnection(false)
+    } catch (error) {
+      enqueueSnackbar(
+        error instanceof Error ? error.message : 'Failed to connect to CUCM',
+        { variant: 'error' }
+      )
+    }
   }
 
   const handleViewJob = (jobId: string) => {
     console.log('View job:', jobId)
+    enqueueSnackbar('Job details view coming in Sprint 4', { variant: 'info' })
   }
 
-  const handleCancelJob = (jobId: string) => {
-    console.log('Cancel job:', jobId)
+  const handleCancelJob = async (jobId: string) => {
+    try {
+      await cancelMutation.mutateAsync(jobId)
+      enqueueSnackbar('Job cancelled successfully', { variant: 'success' })
+    } catch (error) {
+      enqueueSnackbar(
+        error instanceof Error ? error.message : 'Failed to cancel job',
+        { variant: 'error' }
+      )
+    }
   }
 
-  const handleDownloadLogs = (jobId: string) => {
-    console.log('Download logs:', jobId)
+  const handleDownloadLogs = async (jobId: string) => {
+    try {
+      await downloadAllLogs(jobId)
+      enqueueSnackbar('Logs download started', { variant: 'success' })
+    } catch (error) {
+      enqueueSnackbar(
+        error instanceof Error ? error.message : 'Failed to download logs',
+        { variant: 'error' }
+      )
+    }
   }
 
   return (
@@ -93,7 +77,11 @@ export default function Dashboard() {
 
       {showConnection && (
         <Box sx={{ mb: 4 }}>
-          <ConnectionForm onSubmit={handleConnect} />
+          <ConnectionForm
+            onSubmit={handleConnect}
+            isLoading={discoverMutation.isPending}
+            error={discoverMutation.error?.message}
+          />
         </Box>
       )}
 
@@ -102,7 +90,7 @@ export default function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h3" color="primary">
-              12
+              {jobsData?.total || 0}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Total Jobs
@@ -112,7 +100,7 @@ export default function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h3" color="info.main">
-              2
+              {jobsData?.items.filter(j => j.status === 'running').length || 0}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Running
@@ -122,7 +110,7 @@ export default function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h3" color="success.main">
-              9
+              {jobsData?.items.filter(j => j.status === 'completed').length || 0}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Completed
@@ -132,7 +120,7 @@ export default function Dashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={{ p: 2, textAlign: 'center' }}>
             <Typography variant="h3" color="text.secondary">
-              3
+              {discoveredNodes.length > 0 ? 1 : 0}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Clusters
@@ -145,24 +133,36 @@ export default function Dashboard() {
       <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>
         Recent Jobs
       </Typography>
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        {sampleJobs.map(job => (
-          <Grid item xs={12} md={6} key={job.id}>
-            <JobStatusCard
-              job={job}
-              onView={handleViewJob}
-              onCancel={handleCancelJob}
-              onDownload={handleDownloadLogs}
-            />
-          </Grid>
-        ))}
-      </Grid>
+      {jobsLoading ? (
+        <LoadingSpinner message="Loading jobs..." />
+      ) : jobsData && jobsData.items.length > 0 ? (
+        <Grid container spacing={2} sx={{ mb: 4 }}>
+          {jobsData.items.slice(0, 6).map(job => (
+            <Grid item xs={12} md={6} key={job.id}>
+              <JobStatusCard
+                job={job}
+                onView={handleViewJob}
+                onCancel={handleCancelJob}
+                onDownload={handleDownloadLogs}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <Typography color="text.secondary" sx={{ mb: 4 }}>
+          No jobs yet. Create your first job to get started.
+        </Typography>
+      )}
 
       {/* Cluster Nodes */}
-      <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>
-        Last Discovered Nodes
-      </Typography>
-      <NodeList nodes={sampleNodes} />
+      {discoveredNodes.length > 0 && (
+        <>
+          <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>
+            Last Discovered Nodes
+          </Typography>
+          <NodeList nodes={discoveredNodes} />
+        </>
+      )}
     </Box>
   )
 }
