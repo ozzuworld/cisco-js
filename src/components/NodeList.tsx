@@ -35,10 +35,16 @@ const roleColors: Record<ClusterNode['role'], 'primary' | 'secondary' | 'info' |
   cups: 'warning',
 }
 
-const statusIcons: Record<ClusterNode['status'], React.ReactElement> = {
-  online: <CheckCircle color="success" fontSize="small" />,
-  offline: <Error color="error" fontSize="small" />,
-  unknown: <HelpOutline color="disabled" fontSize="small" />,
+const getStatusIcon = (status: ClusterNode['status']): React.ReactElement => {
+  switch (status) {
+    case 'online':
+      return <CheckCircle color="success" fontSize="small" />
+    case 'offline':
+      return <Error color="error" fontSize="small" />
+    case 'unknown':
+    default:
+      return <HelpOutline color="disabled" fontSize="small" />
+  }
 }
 
 export default function NodeList({
@@ -204,7 +210,7 @@ export default function NodeList({
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Tooltip title={node.status}>{statusIcons[node.status]}</Tooltip>
+                    <Tooltip title={node.status}>{getStatusIcon(node.status)}</Tooltip>
                   </TableCell>
                 </TableRow>
               )
