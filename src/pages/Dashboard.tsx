@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Box, Typography, Grid, Paper, Button } from '@mui/material'
-import { Add as AddIcon } from '@mui/icons-material'
+import { Box, Typography, Grid, Paper, Button, LinearProgress } from '@mui/material'
+import { Add as AddIcon, TrendingUp } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { JobStatusCard, JobWizard, LoadingSpinner } from '@/components'
 import { useJobs, useCancelJob, useDownloadAllLogs } from '@/hooks'
@@ -12,7 +12,18 @@ export default function Dashboard() {
   const { enqueueSnackbar } = useSnackbar()
 
   // Fetch recent jobs (limit to first page)
-  const { data: jobsData, isLoading: jobsLoading } = useJobs(1, 6)
+  const { data: jobsData, isLoading: jobsLoading } = useJobs(1, 20)
+
+  // Calculate success rate
+  const successRate = useMemo(() => {
+    if (!jobsData?.items?.length) return 0
+    const completedJobs = jobsData.items.filter(j =>
+      j.status === 'completed' || j.status === 'failed'
+    )
+    if (completedJobs.length === 0) return 0
+    const successful = completedJobs.filter(j => j.status === 'completed').length
+    return Math.round((successful / completedJobs.length) * 100)
+  }, [jobsData])
   const cancelMutation = useCancelJob()
   const downloadAllLogs = useDownloadAllLogs()
 
@@ -104,6 +115,26 @@ export default function Dashboard() {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Success Rate */}
+      <Paper sx={{ p: 2, mb: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <TrendingUp color="primary" />
+          <Typography variant="subtitle1">Success Rate</Typography>
+          <Typography variant="h6" sx={{ ml: 'auto' }}>
+            {successRate}%
+          </Typography>
+        </Box>
+        <LinearProgress
+          variant="determinate"
+          value={successRate}
+          color={successRate >= 80 ? 'success' : successRate >= 50 ? 'warning' : 'error'}
+          sx={{ height: 8, borderRadius: 4 }}
+        />
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+          Based on {(jobsData?.items || []).filter(j => j.status === 'completed' || j.status === 'failed').length} completed jobs
+        </Typography>
+      </Paper>
 
       {/* Recent Jobs */}
       <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>

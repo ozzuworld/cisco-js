@@ -23,6 +23,7 @@ import {
   Settings as SettingsIcon,
   ChevronLeft as ChevronLeftIcon,
 } from '@mui/icons-material'
+import { useJobNotifications } from '@/hooks'
 
 const drawerWidth = 240
 
@@ -44,6 +45,9 @@ export default function MainLayout() {
   const [desktopOpen, setDesktopOpen] = useState(true)
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Global job status notifications
+  useJobNotifications()
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
