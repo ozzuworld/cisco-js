@@ -8,7 +8,10 @@ export const healthService = {
    */
   async checkClusterHealth(request: ClusterHealthRequest): Promise<ClusterHealthResponse> {
     console.log('Checking cluster health:', request.publisher_host)
-    const response = await apiClient.post<ClusterHealthResponse>('/cluster/health', request)
+    // Health check can take up to 3 minutes, use 4 minute timeout
+    const response = await apiClient.post<ClusterHealthResponse>('/cluster/health', request, {
+      timeout: 240000, // 4 minutes
+    })
     console.log('Health check response:', response)
     return response
   },
