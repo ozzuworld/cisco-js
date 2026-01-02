@@ -100,13 +100,23 @@
 
 ## ❌ Not Started Tasks
 
-### CUCM-16: Job Details Page (0% Complete)
-**Status:** ❌ Not Implemented
-**Priority:** HIGH
+### CUCM-16: Job Details Page (100% Complete) ✅
+**Status:** ✅ COMPLETED
+**Implementation Date:** 2026-01-02
 
-**Current State:**
-- No route exists for job details
-- "View" button shows placeholder message
+**Implemented:**
+- ✅ Route `/jobs/:jobId` for job details
+- ✅ Job metadata display (ID, status, profile, timestamps, duration)
+- ✅ Real-time status polling for running jobs (every 3 seconds)
+- ✅ Progress bar with node completion count
+- ✅ Node status table with per-node status and error display
+- ✅ Artifacts sidebar with file list and sizes
+- ✅ Download All (ZIP) button
+- ✅ Cancel job button for running jobs
+- ✅ Back navigation to Jobs list
+- ✅ Dashboard and Jobs list View buttons now navigate to details
+
+**Code Reference:** `src/pages/JobDetails.tsx`
 
 **Required Implementation:**
 
@@ -271,10 +281,10 @@ Current backend API doesn't expose:
 | CUCM-13 | Main Dashboard Page | ✅ Complete | 90% |
 | CUCM-14 | Job Creation Wizard | ✅ Complete | 100% |
 | CUCM-15 | Jobs List Page | ✅ Complete | 85% |
-| CUCM-16 | Job Details Page | ❌ Not Started | 0% |
-| CUCM-17 | Real-time Updates | ⚠️ Partial | 70% |
+| CUCM-16 | Job Details Page | ✅ Complete | 100% |
+| CUCM-17 | Real-time Updates | ✅ Complete | 90% |
 
-**Overall Sprint 4 Completion: ~75%**
+**Overall Sprint 4 Completion: ~95%**
 
 ---
 
