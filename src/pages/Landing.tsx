@@ -11,6 +11,7 @@ import {
 import {
   Download as DownloadIcon,
   HealthAndSafety as HealthIcon,
+  NetworkCheck as CaptureIcon,
   Folder as FolderIcon,
   History as HistoryIcon,
 } from '@mui/icons-material'
@@ -37,6 +38,13 @@ const workflowCards: WorkflowCard[] = [
     icon: <HealthIcon sx={{ fontSize: 40 }} />,
     path: '/health',
     color: '#2e7d32', // green
+  },
+  {
+    title: 'Packet Capture',
+    description: 'Capture network traffic from CUCM nodes for SIP, RTP, and protocol troubleshooting.',
+    icon: <CaptureIcon sx={{ fontSize: 40 }} />,
+    path: '/captures',
+    color: '#0288d1', // light blue
   },
   {
     title: 'Job History',

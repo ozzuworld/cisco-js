@@ -12,6 +12,7 @@ import Jobs from './pages/Jobs'
 import JobDetails from './pages/JobDetails'
 import NewJob from './pages/NewJob'
 import Health from './pages/Health'
+import Captures from './pages/Captures'
 import Profiles from './pages/Profiles'
 import Settings from './pages/Settings'
 
@@ -46,6 +47,7 @@ function App() {
                   <Route path="jobs/new" element={<NewJob />} />
                   <Route path="jobs/:jobId" element={<JobDetails />} />
                   <Route path="health" element={<Health />} />
+                  <Route path="captures" element={<Captures />} />
                   <Route path="profiles" element={<Profiles />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>

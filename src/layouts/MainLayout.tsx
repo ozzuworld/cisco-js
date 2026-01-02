@@ -21,6 +21,7 @@ import {
   Dashboard as DashboardIcon,
   Work as WorkIcon,
   HealthAndSafety as HealthIcon,
+  NetworkCheck as CaptureIcon,
   Folder as FolderIcon,
   Settings as SettingsIcon,
   ChevronLeft as ChevronLeftIcon,
@@ -40,6 +41,7 @@ const navItems: NavItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Jobs', icon: <WorkIcon />, path: '/jobs' },
   { text: 'Health', icon: <HealthIcon />, path: '/health' },
+  { text: 'Captures', icon: <CaptureIcon />, path: '/captures' },
   { text: 'Profiles', icon: <FolderIcon />, path: '/profiles' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ]
