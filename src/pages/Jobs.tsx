@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -21,6 +22,7 @@ export default function Jobs() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all')
   const [showWizard, setShowWizard] = useState(false)
+  const navigate = useNavigate()
   const { enqueueSnackbar } = useSnackbar()
 
   // Fetch jobs from API
@@ -33,9 +35,7 @@ export default function Jobs() {
   }
 
   const handleViewJob = (jobId: string) => {
-    // TODO: Navigate to job details page when implemented
-    console.log('View job:', jobId)
-    enqueueSnackbar('Job details page coming soon', { variant: 'info' })
+    navigate(`/jobs/${jobId}`)
   }
 
   const handleCancelJob = async (jobId: string) => {

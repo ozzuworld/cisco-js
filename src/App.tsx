@@ -8,6 +8,7 @@ import { ErrorBoundary } from './components'
 import MainLayout from './layouts/MainLayout'
 import Dashboard from './pages/Dashboard'
 import Jobs from './pages/Jobs'
+import JobDetails from './pages/JobDetails'
 import Profiles from './pages/Profiles'
 import Settings from './pages/Settings'
 
@@ -38,6 +39,7 @@ function App() {
                 <Route path="/" element={<MainLayout />}>
                   <Route index element={<Dashboard />} />
                   <Route path="jobs" element={<Jobs />} />
+                  <Route path="jobs/:jobId" element={<JobDetails />} />
                   <Route path="profiles" element={<Profiles />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>

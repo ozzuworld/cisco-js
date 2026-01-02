@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Box, Typography, Grid, Paper, Button } from '@mui/material'
 import { Add as AddIcon } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
@@ -7,6 +8,7 @@ import { useJobs, useCancelJob, useDownloadAllLogs } from '@/hooks'
 
 export default function Dashboard() {
   const [showWizard, setShowWizard] = useState(false)
+  const navigate = useNavigate()
   const { enqueueSnackbar } = useSnackbar()
 
   // Fetch recent jobs (limit to first page)
@@ -19,9 +21,7 @@ export default function Dashboard() {
   }
 
   const handleViewJob = (jobId: string) => {
-    // TODO: Navigate to job details page when implemented
-    console.log('View job:', jobId)
-    enqueueSnackbar('Job details page coming soon', { variant: 'info' })
+    navigate(`/jobs/${jobId}`)
   }
 
   const handleCancelJob = async (jobId: string) => {
