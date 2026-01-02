@@ -3,7 +3,8 @@
 ## 📋 Overview
 
 **Sprint Goal:** Build main user-facing features
-**Overall Progress:** ~50% Complete
+**Overall Progress:** ~75% Complete
+**Last Updated:** 2026-01-02
 
 ---
 
@@ -51,62 +52,53 @@
 
 ---
 
-## ❌ Not Started Tasks
+### CUCM-14: Job Creation Wizard (100% Complete) ✅
+**Status:** ✅ COMPLETED
+**Location:** `src/components/JobWizard.tsx`
+**Implementation Date:** 2026-01-02
 
-### CUCM-14: Job Creation Wizard (0% Complete)
-**Status:** ❌ Not Implemented
-**Priority:** HIGH
+**Implemented:**
+- ✅ 4-step wizard with Material-UI Stepper
+- ✅ Step 1: Connect to CUCM (reuses ConnectionForm)
+- ✅ Step 2: Select Nodes (interactive table with multi-select)
+- ✅ Step 3: Choose Profile (integrated ProfileSelector)
+- ✅ Step 4: Review & Submit (comprehensive summary)
+- ✅ Wizard state management across steps
+- ✅ Back/Next navigation with validation
+- ✅ Modal dialog interface
+- ✅ Integration with job creation API
+- ✅ Success/error feedback with toast notifications
+- ✅ Loading states for all async operations
 
-**Current State:**
-- Only basic connection form exists
-- No multi-step wizard implementation
+**Components Created:**
+- `src/components/JobWizard.tsx` - Main wizard orchestrator (190 lines)
+- `src/components/wizard/NodeSelectionStep.tsx` - Node selection UI (165 lines)
+- `src/components/wizard/ProfileSelectionStep.tsx` - Profile selection UI (70 lines)
+- `src/components/wizard/ReviewStep.tsx` - Review and submit UI (235 lines)
 
-**Required Implementation:**
-```
-┌─────────────────────────────────────┐
-│ Step 1: Connect to CUCM             │ ← ConnectionForm (exists)
-│   - Hostname, username, password    │
-│   - Discover cluster nodes          │
-├─────────────────────────────────────┤
-│ Step 2: Select Nodes                │ ← NEEDS IMPLEMENTATION
-│   - Display discovered nodes        │
-│   - Multi-select checkboxes         │
-│   - Select all/none options         │
-├─────────────────────────────────────┤
-│ Step 3: Choose Profile              │ ← NEEDS IMPLEMENTATION
-│   - Profile selector UI             │
-│   - Custom profile option           │
-│   - Profile details preview         │
-├─────────────────────────────────────┤
-│ Step 4: Review and Submit           │ ← NEEDS IMPLEMENTATION
-│   - Summary of selections           │
-│   - Submit job button               │
-│   - Edit any step                   │
-└─────────────────────────────────────┘
-```
+**Integration:**
+- Dashboard: "New Job" button opens wizard
+- Jobs page: Added "New Job" button
 
-**Technical Tasks:**
-1. Create `JobWizard.tsx` component with stepper UI
-2. Implement wizard state management (form data across steps)
-3. Add step validation before proceeding
-4. Create navigation controls (Back/Next/Submit)
-5. Build review summary component
-6. Integrate with job creation API
-7. Add success/error feedback
+**Backend Integration:**
+- `POST /discover-nodes` - Cluster discovery
+- `GET /profiles` - Fetch profiles (with format transformation)
+- `POST /jobs` - Create job
 
-**Suggested Location:** `src/components/JobWizard.tsx`
-**Route:** Could be modal on Dashboard or separate route `/jobs/new`
+**Known Issues Fixed:**
+- ✅ Profile response format transformation (snake_case → camelCase)
+- ✅ Missing `id` field in profiles (uses `name` as fallback)
+- ✅ Array validation for profiles data
 
-**Backend API:** `POST /jobs` with payload:
-```json
-{
-  "connection": { "hostname": "...", "username": "...", "password": "..." },
-  "nodeIds": ["node1", "node2"],
-  "profile": "basic_platform"
-}
-```
+**Documentation:** See `/CUCM-14_IMPLEMENTATION.md` for detailed implementation guide
+
+**Code References:**
+- Main wizard: `src/components/JobWizard.tsx`
+- Step components: `src/components/wizard/`
 
 ---
+
+## ❌ Not Started Tasks
 
 ### CUCM-16: Job Details Page (0% Complete)
 **Status:** ❌ Not Implemented
@@ -277,27 +269,27 @@ Current backend API doesn't expose:
 | Story | Title | Status | Progress |
 |-------|-------|--------|----------|
 | CUCM-13 | Main Dashboard Page | ✅ Complete | 90% |
-| CUCM-14 | Job Creation Wizard | ❌ Not Started | 0% |
+| CUCM-14 | Job Creation Wizard | ✅ Complete | 100% |
 | CUCM-15 | Jobs List Page | ✅ Complete | 85% |
 | CUCM-16 | Job Details Page | ❌ Not Started | 0% |
-| CUCM-17 | Real-time Updates | ⚠️ Partial | 30% |
+| CUCM-17 | Real-time Updates | ⚠️ Partial | 70% |
 
-**Overall Sprint 4 Completion: ~50%**
+**Overall Sprint 4 Completion: ~75%**
 
 ---
 
 ## 🎯 Recommended Implementation Order
 
 ### Phase 1: Core Functionality (Priority: HIGH)
-1. **Job Details Page** (CUCM-16)
+1. **Job Details Page** (CUCM-16) ⬅️ NEXT PRIORITY
    - Most critical missing feature
    - Users need to see job progress and download logs
    - Estimated effort: 4-6 hours
 
-2. **Job Creation Wizard** (CUCM-14)
-   - Currently creates incomplete jobs
-   - Needed for full workflow
-   - Estimated effort: 6-8 hours
+2. ~~**Job Creation Wizard** (CUCM-14)~~ ✅ COMPLETED
+   - Full 4-step wizard implemented
+   - Modal dialog interface
+   - All acceptance criteria met
 
 ### Phase 2: Polish & UX (Priority: MEDIUM)
 3. **Real-time Updates** (CUCM-17)
