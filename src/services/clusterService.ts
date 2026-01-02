@@ -6,7 +6,7 @@ export const clusterService = {
    * Discover CUCM cluster nodes
    */
   async discover(connection: ConnectionRequest): Promise<DiscoverResponse> {
-    return apiClient.post<DiscoverResponse>('/api/discover', connection)
+    return apiClient.post<DiscoverResponse>('/discover-nodes', connection)
   },
 
   /**
@@ -15,6 +15,6 @@ export const clusterService = {
   async testConnection(
     connection: ConnectionRequest
   ): Promise<{ success: boolean; message: string }> {
-    return apiClient.post('/api/connection/test', connection)
+    return apiClient.post('/connection/test', connection)
   },
 }

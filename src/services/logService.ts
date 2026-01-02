@@ -6,7 +6,7 @@ export const logService = {
    * Get logs for a specific job
    */
   async getJobLogs(jobId: string): Promise<LogFile[]> {
-    return apiClient.get<LogFile[]>(`/api/jobs/${jobId}/logs`)
+    return apiClient.get<LogFile[]>(`/jobs/${jobId}/artifacts`)
   },
 
   /**
@@ -14,7 +14,7 @@ export const logService = {
    */
   async downloadLog(jobId: string, filename: string): Promise<Blob> {
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/api/jobs/${jobId}/logs/${filename}`,
+      `${import.meta.env.VITE_API_BASE_URL}/jobs/${jobId}/artifacts/${filename}`,
       {
         method: 'GET',
         headers: {
@@ -35,7 +35,7 @@ export const logService = {
    */
   async downloadAllLogs(jobId: string): Promise<Blob> {
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/api/jobs/${jobId}/logs/download-all`,
+      `${import.meta.env.VITE_API_BASE_URL}/jobs/${jobId}/artifacts/download-all`,
       {
         method: 'GET',
         headers: {
