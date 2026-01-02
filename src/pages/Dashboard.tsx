@@ -135,7 +135,7 @@ export default function Dashboard() {
       </Typography>
       {jobsLoading ? (
         <LoadingSpinner message="Loading jobs..." />
-      ) : jobsData && jobsData.items.length > 0 ? (
+      ) : jobsData?.items?.length ? (
         <Grid container spacing={2} sx={{ mb: 4 }}>
           {jobsData.items.slice(0, 6).map(job => (
             <Grid item xs={12} md={6} key={job.id}>
