@@ -452,7 +452,13 @@ export default function LogCollection() {
       try {
         const status = await jobService.getJobStatus(jobId)
 
-        if (status.status === 'running') {
+        console.log(`[CUCM Poll ${jobId}] Response:`, JSON.stringify(status, null, 2))
+        console.log(`[CUCM Poll ${jobId}] status.status = "${status.status}"`)
+
+        // Normalize status for comparison (handle various backend responses)
+        const jobStatus = status.status?.toLowerCase() || ''
+
+        if (jobStatus === 'running' || jobStatus === 'in_progress' || jobStatus === 'processing') {
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: {
@@ -462,20 +468,22 @@ export default function LogCollection() {
             },
           }))
           setTimeout(poll, 3000)
-        } else if (status.status === 'completed') {
+        } else if (jobStatus === 'completed' || jobStatus === 'success' || jobStatus === 'done' || jobStatus === 'finished') {
+          console.log(`[CUCM Poll ${jobId}] Job completed!`)
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: { ...prev[deviceId], status: 'completed', progress: 100, downloadAvailable: true },
           }))
           // useEffect will handle completion check
-        } else if (status.status === 'failed') {
+        } else if (jobStatus === 'failed' || jobStatus === 'error' || jobStatus === 'cancelled') {
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
           }))
           // useEffect will handle completion check
         } else {
-          // Keep polling for pending status
+          // Keep polling for pending/unknown status
+          console.log(`[CUCM Poll ${jobId}] Unknown status "${jobStatus}", continuing to poll...`)
           setTimeout(poll, 3000)
         }
       } catch {
