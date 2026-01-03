@@ -310,7 +310,7 @@ export default function LogCollection() {
             password: device.password,
             port: device.port || 22,
             nodes: device.selectedNodes || [],
-            profile: selectedProfile || 'default',
+            profile: selectedProfile || 'callmanager_full',
           })
 
           // Update device with job ID
@@ -781,12 +781,18 @@ export default function LogCollection() {
                   onChange={e => setSelectedProfile(e.target.value)}
                 >
                   {profiles.map(p => (
-                    <MenuItem key={p.id} value={p.id}>
-                      {p.name}
+                    <MenuItem key={p.name} value={p.name}>
+                      {p.name} - {p.description}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
+            )}
+
+            {collectionType === 'regular' && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                Uses <strong>callmanager_full</strong> profile (complete CallManager logs)
+              </Typography>
             )}
           </Paper>
         </Grid>
