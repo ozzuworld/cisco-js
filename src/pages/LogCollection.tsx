@@ -54,7 +54,7 @@ import {
   Dns,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
-import { logService } from '@/services'
+import { logService, jobService } from '@/services'
 import type {
   ClusterNode,
   LogProfile,
@@ -75,9 +75,11 @@ interface DeviceEntry {
   // CUCM-specific
   discoveredNodes?: ClusterNode[]
   selectedNodes?: string[]
+  jobId?: string  // Track CUCM job ID
   // CUBE/Expressway-specific
   includeDebug?: boolean
   debugDuration?: number
+  collectionId?: string  // Track CUBE/Expressway collection ID
 }
 
 const steps = ['Add Devices', 'Collection Options', 'Collect']
@@ -118,7 +120,6 @@ export default function LogCollection() {
   const [relativeMinutes, setRelativeMinutes] = useState(60)
 
   // Collection state
-  const [collectionId, setCollectionId] = useState<string | null>(null)
   const [collectionStatus, setCollectionStatus] = useState<LogCollectionStatus | null>(null)
   const [collectionError, setCollectionError] = useState<string | null>(null)
   const [deviceProgress, setDeviceProgress] = useState<Record<string, { status: string; progress: number }>>({})
@@ -258,23 +259,56 @@ export default function LogCollection() {
     })
     setDeviceProgress(initialProgress)
 
-    // Check if any CUCM devices - redirect to existing job wizard for now
-    if (cucmDevices.length > 0) {
-      // For now, redirect to existing job wizard for CUCM
-      // In future, integrate with jobs API here
-      navigate('/jobs/new')
-      return
-    }
-
-    // Collect from CUBE/Expressway devices
+    // Start collections for all devices
     try {
-      for (const device of devices) {
-        if (device.type === 'cube' || device.type === 'expressway') {
+      // Start CUCM jobs
+      for (const device of cucmDevices) {
+        setDeviceProgress(prev => ({
+          ...prev,
+          [device.id]: { status: 'running', progress: 5 },
+        }))
+
+        try {
+          const job = await jobService.createJob({
+            publisher_host: device.host,
+            username: device.username,
+            password: device.password,
+            port: device.port,
+            nodes: device.selectedNodes || [],
+            profile: selectedProfile || 'default',
+            options: {
+              time_mode: timeRangeType === 'absolute' ? 'range' : 'relative',
+              reltime_minutes: timeRangeType === 'relative' ? relativeMinutes : undefined,
+            },
+          })
+
+          // Update device with job ID
+          setDevices(prev => prev.map(d =>
+            d.id === device.id ? { ...d, jobId: job.id } : d
+          ))
+
+          // Start polling for CUCM job
+          pollCucmJobStatus(device.id, job.id)
+        } catch (error) {
           setDeviceProgress(prev => ({
             ...prev,
-            [device.id]: { status: 'running', progress: 10 },
+            [device.id]: { status: 'failed', progress: 0 },
           }))
+          enqueueSnackbar(
+            `Failed to start collection for ${device.host}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            { variant: 'error' }
+          )
+        }
+      }
 
+      // Start CUBE/Expressway collections
+      for (const device of devices.filter(d => d.type === 'cube' || d.type === 'expressway')) {
+        setDeviceProgress(prev => ({
+          ...prev,
+          [device.id]: { status: 'running', progress: 10 },
+        }))
+
+        try {
           const response = await logService.startCollection({
             device_type: device.type as LogDeviceType,
             host: device.host,
@@ -285,11 +319,24 @@ export default function LogCollection() {
             duration_sec: device.includeDebug ? device.debugDuration : undefined,
           })
 
-          setCollectionId(response.collection_id)
+          // Update device with collection ID
+          setDevices(prev => prev.map(d =>
+            d.id === device.id ? { ...d, collectionId: response.collection_id } : d
+          ))
+
           setCollectionStatus(response.status)
 
           // Start polling for this device
           pollDeviceStatus(device.id, response.collection_id)
+        } catch (error) {
+          setDeviceProgress(prev => ({
+            ...prev,
+            [device.id]: { status: 'failed', progress: 0 },
+          }))
+          enqueueSnackbar(
+            `Failed to start collection for ${device.host}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            { variant: 'error' }
+          )
         }
       }
 
@@ -299,6 +346,50 @@ export default function LogCollection() {
     }
   }
 
+  // Poll CUCM job status
+  const pollCucmJobStatus = async (deviceId: string, jobId: string) => {
+    const poll = async () => {
+      try {
+        const status = await jobService.getJobStatus(jobId)
+
+        if (status.status === 'running') {
+          setDeviceProgress(prev => ({
+            ...prev,
+            [deviceId]: {
+              status: 'running',
+              progress: status.percent_complete || Math.min((prev[deviceId]?.progress || 0) + 5, 90),
+            },
+          }))
+          setTimeout(poll, 3000)
+        } else if (status.status === 'completed') {
+          setDeviceProgress(prev => ({
+            ...prev,
+            [deviceId]: { status: 'completed', progress: 100 },
+          }))
+          checkAllComplete()
+        } else if (status.status === 'failed') {
+          setDeviceProgress(prev => ({
+            ...prev,
+            [deviceId]: { status: 'failed', progress: 0 },
+          }))
+          checkAllComplete()
+        } else {
+          // Keep polling for pending status
+          setTimeout(poll, 3000)
+        }
+      } catch {
+        setDeviceProgress(prev => ({
+          ...prev,
+          [deviceId]: { status: 'failed', progress: 0 },
+        }))
+        checkAllComplete()
+      }
+    }
+
+    poll()
+  }
+
+  // Poll CUBE/Expressway collection status
   const pollDeviceStatus = async (deviceId: string, collectionIdParam: string) => {
     const poll = async () => {
       try {
@@ -353,16 +444,20 @@ export default function LogCollection() {
   }
 
   const handleDownload = () => {
-    if (collectionId) {
-      logService.downloadCollection(collectionId, `logs_collection.zip`)
-      enqueueSnackbar('Download started', { variant: 'success' })
+    // Download from all devices
+    for (const device of devices) {
+      if (device.type === 'cucm' && device.jobId) {
+        jobService.downloadAllArtifacts(device.jobId)
+      } else if ((device.type === 'cube' || device.type === 'expressway') && device.collectionId) {
+        logService.downloadCollection(device.collectionId, `logs_${device.type}_${device.host}.zip`)
+      }
     }
+    enqueueSnackbar('Downloads started', { variant: 'success' })
   }
 
   const handleNewCollection = () => {
     setCurrentStep('devices')
     setDevices([])
-    setCollectionId(null)
     setCollectionStatus(null)
     setCollectionError(null)
     setDeviceProgress({})
