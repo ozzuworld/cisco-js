@@ -131,7 +131,13 @@ export default function LogCollection() {
   // Collection state
   const [collectionStatus, setCollectionStatus] = useState<LogCollectionStatus | null>(null)
   const [collectionError, setCollectionError] = useState<string | null>(null)
-  const [deviceProgress, setDeviceProgress] = useState<Record<string, { status: string; progress: number; downloadAvailable?: boolean }>>({})
+  const [deviceProgress, setDeviceProgress] = useState<Record<string, {
+    status: string
+    progress: number
+    downloadAvailable?: boolean
+    collectionId?: string  // For CUBE/Expressway
+    jobId?: string         // For CUCM
+  }>>({})
 
   // Fallback profiles if API is unavailable
   const fallbackCubeProfiles: DeviceProfile[] = [
@@ -361,10 +367,11 @@ export default function LogCollection() {
             profile: selectedProfile || 'callmanager_full',
           })
 
-          // Update device with job ID
-          setDevices(prev => prev.map(d =>
-            d.id === device.id ? { ...d, jobId: job.id } : d
-          ))
+          // Store job ID in progress state for reliable download access
+          setDeviceProgress(prev => ({
+            ...prev,
+            [device.id]: { ...prev[device.id], jobId: job.id },
+          }))
 
           // Start polling for CUCM job
           pollCucmJobStatus(device.id, job.id)
@@ -404,10 +411,13 @@ export default function LogCollection() {
             duration_sec: isDebugProfile ? debugDuration : undefined,
           })
 
-          // Update device with collection ID
-          setDevices(prev => prev.map(d =>
-            d.id === device.id ? { ...d, collectionId: response.collection_id } : d
-          ))
+          console.log(`[${device.type}] Started collection:`, response.collection_id)
+
+          // Store collection ID in progress state for reliable download access
+          setDeviceProgress(prev => ({
+            ...prev,
+            [device.id]: { ...prev[device.id], collectionId: response.collection_id },
+          }))
 
           setCollectionStatus(response.status)
 
@@ -441,6 +451,7 @@ export default function LogCollection() {
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: {
+              ...prev[deviceId],
               status: 'running',
               progress: status.percent_complete || Math.min((prev[deviceId]?.progress || 0) + 5, 90),
             },
@@ -449,13 +460,13 @@ export default function LogCollection() {
         } else if (status.status === 'completed') {
           setDeviceProgress(prev => ({
             ...prev,
-            [deviceId]: { status: 'completed', progress: 100, downloadAvailable: true },
+            [deviceId]: { ...prev[deviceId], status: 'completed', progress: 100, downloadAvailable: true },
           }))
           // useEffect will handle completion check
         } else if (status.status === 'failed') {
           setDeviceProgress(prev => ({
             ...prev,
-            [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
+            [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
           }))
           // useEffect will handle completion check
         } else {
@@ -465,7 +476,7 @@ export default function LogCollection() {
       } catch {
         setDeviceProgress(prev => ({
           ...prev,
-          [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
+          [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
         }))
         // useEffect will handle completion check
       }
@@ -483,10 +494,13 @@ export default function LogCollection() {
         // Backend returns download_available inside collection object
         const downloadAvailable = response.collection?.download_available || response.download_available || false
 
+        console.log(`[Poll ${collectionIdParam}] status=${status}, downloadAvailable=${downloadAvailable}`)
+
         if (status === 'running' || status === 'pending') {
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: {
+              ...prev[deviceId],
               status: 'running',
               progress: Math.min((prev[deviceId]?.progress || 0) + 10, 90),
               downloadAvailable: false,
@@ -496,30 +510,31 @@ export default function LogCollection() {
         } else if (status === 'completed') {
           // Only mark as fully complete when download is available
           if (downloadAvailable) {
+            console.log(`[Poll ${collectionIdParam}] Collection complete, download available`)
             setDeviceProgress(prev => ({
               ...prev,
-              [deviceId]: { status: 'completed', progress: 100, downloadAvailable: true },
+              [deviceId]: { ...prev[deviceId], status: 'completed', progress: 100, downloadAvailable: true },
             }))
             // useEffect will handle completion check
           } else {
             // Status is completed but download not yet ready, keep polling
             setDeviceProgress(prev => ({
               ...prev,
-              [deviceId]: { status: 'completed', progress: 95, downloadAvailable: false },
+              [deviceId]: { ...prev[deviceId], status: 'completed', progress: 95, downloadAvailable: false },
             }))
             setTimeout(poll, 2000)
           }
         } else if (status === 'failed' || status === 'cancelled') {
           setDeviceProgress(prev => ({
             ...prev,
-            [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
+            [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
           }))
           // useEffect will handle completion check
         }
       } catch {
         setDeviceProgress(prev => ({
           ...prev,
-          [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
+          [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
         }))
         // useEffect will handle completion check
       }
@@ -549,22 +564,50 @@ export default function LogCollection() {
     }
   }, [deviceProgress, devices.length, collectionStatus, enqueueSnackbar])
 
-  const handleDownload = () => {
-    // Download from all devices that have completed with downloads available
+  // Download logs for a single device
+  const handleDownloadDevice = (device: DeviceEntry) => {
+    const progress = deviceProgress[device.id]
+
+    if (!progress?.downloadAvailable) {
+      enqueueSnackbar('Download not available yet', { variant: 'warning' })
+      return
+    }
+
+    if (device.type === 'cucm') {
+      // Use jobId from progress state
+      const jobId = progress.jobId
+      if (jobId) {
+        console.log(`[Download] CUCM job ${jobId}`)
+        jobService.downloadAllArtifacts(jobId)
+        enqueueSnackbar(`Downloading logs from ${device.host}...`, { variant: 'info' })
+      } else {
+        enqueueSnackbar('Job ID not found', { variant: 'error' })
+      }
+    } else {
+      // CUBE/Expressway - use collectionId from progress state
+      const collectionId = progress.collectionId
+      if (collectionId) {
+        console.log(`[Download] ${device.type} collection ${collectionId}`)
+        logService.downloadCollection(collectionId, `logs_${device.type}_${device.host}.tar.gz`)
+        enqueueSnackbar(`Downloading logs from ${device.host}...`, { variant: 'info' })
+      } else {
+        enqueueSnackbar('Collection ID not found', { variant: 'error' })
+      }
+    }
+  }
+
+  // Download all completed logs
+  const handleDownloadAll = () => {
     let downloadCount = 0
     for (const device of devices) {
       const progress = deviceProgress[device.id]
 
-      if (device.type === 'cucm' && device.jobId) {
-        // CUCM jobs - check if completed
-        if (progress?.status === 'completed') {
-          jobService.downloadAllArtifacts(device.jobId)
+      if (progress?.status === 'completed' && progress?.downloadAvailable) {
+        if (device.type === 'cucm' && progress.jobId) {
+          jobService.downloadAllArtifacts(progress.jobId)
           downloadCount++
-        }
-      } else if ((device.type === 'cube' || device.type === 'expressway') && device.collectionId) {
-        // CUBE/Expressway - check download_available flag
-        if (progress?.status === 'completed' && progress?.downloadAvailable) {
-          logService.downloadCollection(device.collectionId, `logs_${device.type}_${device.host}.tar.gz`)
+        } else if ((device.type === 'cube' || device.type === 'expressway') && progress.collectionId) {
+          logService.downloadCollection(progress.collectionId, `logs_${device.type}_${device.host}.tar.gz`)
           downloadCount++
         }
       }
@@ -1065,17 +1108,69 @@ export default function LogCollection() {
           </Button>
         </Box>
       ) : collectionStatus === 'completed' ? (
-        <Box sx={{ textAlign: 'center' }}>
-          <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-          <Typography variant="h5" gutterBottom>
-            Collection Complete
-          </Typography>
-          <Typography color="text.secondary" sx={{ mb: 3 }}>
-            Logs collected from {devices.length} device(s)
-          </Typography>
+        <Box>
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+            <Typography variant="h5" gutterBottom>
+              Collection Complete
+            </Typography>
+            <Typography color="text.secondary">
+              Logs collected from {devices.length} device(s)
+            </Typography>
+          </Box>
+
+          {/* Individual device downloads */}
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Download Individual Logs
+            </Typography>
+            <Divider sx={{ my: 2 }} />
+            <List dense>
+              {devices.map(device => {
+                const config = deviceTypeConfig[device.type]
+                const progress = deviceProgress[device.id]
+                const canDownload = progress?.status === 'completed' && progress?.downloadAvailable
+                return (
+                  <ListItem key={device.id}>
+                    <ListItemIcon>
+                      {canDownload ? (
+                        <CheckCircle color="success" />
+                      ) : progress?.status === 'failed' ? (
+                        <ErrorIcon color="error" />
+                      ) : (
+                        <PendingIcon color="disabled" />
+                      )}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Chip label={config?.label || device.type} size="small" sx={{ bgcolor: config?.color || '#666', color: 'white' }} />
+                          {device.host || 'Unknown'}
+                        </Box>
+                      }
+                      secondary={canDownload ? 'Ready to download' : progress?.status === 'failed' ? 'Collection failed' : 'Processing...'}
+                    />
+                    <ListItemSecondaryAction>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Download />}
+                        onClick={() => handleDownloadDevice(device)}
+                        disabled={!canDownload}
+                      >
+                        Download
+                      </Button>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                )
+              })}
+            </List>
+          </Paper>
+
+          {/* Action buttons */}
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-            <Button variant="contained" startIcon={<Download />} onClick={handleDownload}>
-              Download All
+            <Button variant="contained" startIcon={<Download />} onClick={handleDownloadAll}>
+              Download All ({devices.filter(d => deviceProgress[d.id]?.downloadAvailable).length})
             </Button>
             <Button variant="outlined" onClick={handleNewCollection}>
               New Collection
@@ -1109,6 +1204,7 @@ export default function LogCollection() {
               {devices.map(device => {
                 const config = deviceTypeConfig[device.type]
                 const progress = deviceProgress[device.id] || { status: 'pending', progress: 0 }
+                const canDownload = progress.status === 'completed' && progress.downloadAvailable
                 return (
                   <ListItem key={device.id}>
                     <ListItemIcon>
@@ -1137,10 +1233,21 @@ export default function LogCollection() {
                         />
                       }
                     />
-                    <ListItemSecondaryAction>
-                      <Typography variant="body2" color="text.secondary">
-                        {progress.progress}%
-                      </Typography>
+                    <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {canDownload ? (
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleDownloadDevice(device)}
+                          title="Download"
+                        >
+                          <Download />
+                        </IconButton>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          {progress.progress}%
+                        </Typography>
+                      )}
                     </ListItemSecondaryAction>
                   </ListItem>
                 )
