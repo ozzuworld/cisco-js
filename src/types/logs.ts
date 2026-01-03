@@ -4,6 +4,21 @@ export type LogDeviceType = 'cube' | 'expressway'
 
 export type LogCollectionStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
 
+// Device-specific profile (CUBE or Expressway)
+export interface DeviceProfile {
+  name: string
+  description: string
+  device_type: LogDeviceType
+  method: string
+  tcpdump?: boolean  // Expressway only
+}
+
+// Response from GET /logs/profiles
+export interface DeviceProfilesResponse {
+  cube_profiles: DeviceProfile[]
+  expressway_profiles: DeviceProfile[]
+}
+
 // CUBE/Expressway Log Collection
 export interface StartLogCollectionRequest {
   device_type: LogDeviceType
@@ -11,8 +26,9 @@ export interface StartLogCollectionRequest {
   port?: number
   username: string
   password: string
-  include_debug?: boolean    // VoIP trace (false) vs Debug mode (true)
-  duration_sec?: number      // For debug mode
+  profile?: string              // Profile name from GET /logs/profiles
+  include_debug?: boolean       // Legacy: VoIP trace (false) vs Debug mode (true)
+  duration_sec?: number         // For debug mode (5-300)
   connect_timeout_sec?: number
 }
 
@@ -22,11 +38,14 @@ export interface LogCollectionInfo {
   status: LogCollectionStatus
   host: string
   port: number
-  include_debug: boolean
+  profile?: string
+  method?: string
+  include_debug?: boolean
   created_at: string
   started_at?: string
   completed_at?: string
   file_count?: number
+  file_size_bytes?: number
   total_size_bytes?: number
   error?: string
   files?: LogFileInfo[]
@@ -41,7 +60,15 @@ export interface LogFileInfo {
 export interface StartLogCollectionResponse {
   collection_id: string
   status: LogCollectionStatus
+  host: string
+  device_type: LogDeviceType
   message: string
+  created_at: string
+}
+
+export interface LogCollectionStatusResponse {
+  collection: LogCollectionInfo
+  download_available: boolean
 }
 
 export interface LogCollectionListResponse {

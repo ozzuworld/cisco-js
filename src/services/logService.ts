@@ -5,8 +5,9 @@ import type {
   DiscoverResponse,
   StartLogCollectionRequest,
   StartLogCollectionResponse,
-  LogCollectionInfo,
   LogCollectionListResponse,
+  LogCollectionStatusResponse,
+  DeviceProfilesResponse,
   DiscoverNodesRequest,
 } from '@/types'
 
@@ -86,8 +87,8 @@ export const logService = {
   /**
    * Get status of a specific log collection
    */
-  async getCollectionStatus(collectionId: string): Promise<LogCollectionInfo> {
-    return apiClient.get<LogCollectionInfo>(`/logs/${collectionId}`)
+  async getCollectionStatus(collectionId: string): Promise<LogCollectionStatusResponse> {
+    return apiClient.get<LogCollectionStatusResponse>(`/logs/${collectionId}`)
   },
 
   /**
@@ -139,9 +140,16 @@ export const logService = {
   // ==========================================
 
   /**
-   * Get available log collection profiles
+   * Get available CUCM log collection profiles
    */
   async getProfiles(): Promise<{ profiles: LogProfile[] }> {
     return apiClient.get<{ profiles: LogProfile[] }>('/profiles')
+  },
+
+  /**
+   * Get available CUBE/Expressway log collection profiles
+   */
+  async getDeviceProfiles(): Promise<DeviceProfilesResponse> {
+    return apiClient.get<DeviceProfilesResponse>('/logs/profiles')
   },
 }

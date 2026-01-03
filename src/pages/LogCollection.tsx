@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -60,6 +60,7 @@ import type {
   LogProfile,
   LogDeviceType,
   LogCollectionStatus,
+  DeviceProfile,
 } from '@/types'
 
 type DeviceType = 'cucm' | 'cube' | 'expressway'
@@ -77,9 +78,10 @@ interface DeviceEntry {
   selectedNodes?: string[]
   jobId?: string  // Track CUCM job ID
   // CUBE/Expressway-specific
-  includeDebug?: boolean
-  debugDuration?: number
-  collectionId?: string  // Track CUBE/Expressway collection ID
+  profile?: string           // Selected profile name
+  includeDebug?: boolean     // Legacy - now use profile
+  debugDuration?: number     // For debug profiles
+  collectionId?: string      // Track CUBE/Expressway collection ID
 }
 
 const steps = ['Add Devices', 'Collection Options', 'Collect']
@@ -112,17 +114,38 @@ export default function LogCollection() {
   // CUCM discovery state
   const [isDiscovering, setIsDiscovering] = useState<string | null>(null)
 
-  // Collection options
+  // Collection options - CUCM
   const [collectionType, setCollectionType] = useState<'regular' | 'profile'>('regular')
   const [profiles, setProfiles] = useState<LogProfile[]>([])
   const [selectedProfile, setSelectedProfile] = useState('')
   const [timeRangeType, setTimeRangeType] = useState<'relative' | 'absolute'>('relative')
   const [relativeMinutes, setRelativeMinutes] = useState(60)
 
+  // Collection options - CUBE/Expressway
+  const [cubeProfiles, setCubeProfiles] = useState<DeviceProfile[]>([])
+  const [expresswayProfiles, setExpresswayProfiles] = useState<DeviceProfile[]>([])
+  const [selectedCubeProfile, setSelectedCubeProfile] = useState('voip_trace')
+  const [selectedExpresswayProfile, setSelectedExpresswayProfile] = useState('diagnostic_logs')
+  const [debugDuration, setDebugDuration] = useState(30)
+
   // Collection state
   const [collectionStatus, setCollectionStatus] = useState<LogCollectionStatus | null>(null)
   const [collectionError, setCollectionError] = useState<string | null>(null)
   const [deviceProgress, setDeviceProgress] = useState<Record<string, { status: string; progress: number }>>({})
+
+  // Fetch device profiles on mount
+  useEffect(() => {
+    const fetchDeviceProfiles = async () => {
+      try {
+        const response = await logService.getDeviceProfiles()
+        setCubeProfiles(response.cube_profiles || [])
+        setExpresswayProfiles(response.expressway_profiles || [])
+      } catch (error) {
+        console.error('Failed to fetch device profiles:', error)
+      }
+    }
+    fetchDeviceProfiles()
+  }, [])
 
   const getActiveStep = () => {
     switch (currentStep) {
@@ -340,14 +363,18 @@ export default function LogCollection() {
         }))
 
         try {
+          // Determine profile based on device type
+          const profile = device.type === 'cube' ? selectedCubeProfile : selectedExpresswayProfile
+          const isDebugProfile = profile.includes('debug')
+
           const response = await logService.startCollection({
             device_type: device.type as LogDeviceType,
             host: device.host,
             port: device.port,
             username: device.username,
             password: device.password,
-            include_debug: device.includeDebug,
-            duration_sec: device.includeDebug ? device.debugDuration : undefined,
+            profile: profile,
+            duration_sec: isDebugProfile ? debugDuration : undefined,
           })
 
           // Update device with collection ID
@@ -424,9 +451,10 @@ export default function LogCollection() {
   const pollDeviceStatus = async (deviceId: string, collectionIdParam: string) => {
     const poll = async () => {
       try {
-        const status = await logService.getCollectionStatus(collectionIdParam)
+        const response = await logService.getCollectionStatus(collectionIdParam)
+        const status = response.collection?.status || 'pending'
 
-        if (status.status === 'running') {
+        if (status === 'running' || status === 'pending') {
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: {
@@ -435,13 +463,13 @@ export default function LogCollection() {
             },
           }))
           setTimeout(poll, 3000)
-        } else if (status.status === 'completed') {
+        } else if (status === 'completed') {
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: { status: 'completed', progress: 100 },
           }))
           checkAllComplete()
-        } else if (status.status === 'failed') {
+        } else if (status === 'failed' || status === 'cancelled') {
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: { status: 'failed', progress: 0 },
@@ -453,6 +481,7 @@ export default function LogCollection() {
           ...prev,
           [deviceId]: { status: 'failed', progress: 0 },
         }))
+        checkAllComplete()
       }
     }
 
@@ -830,6 +859,95 @@ export default function LogCollection() {
           </Paper>
         </Grid>
 
+        {/* CUBE Profile Selection */}
+        {devices.some(d => d.type === 'cube') && (
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                CUBE Collection Profile
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <FormControl fullWidth>
+                <InputLabel>Profile</InputLabel>
+                <Select
+                  value={selectedCubeProfile}
+                  label="Profile"
+                  onChange={e => setSelectedCubeProfile(e.target.value)}
+                >
+                  {cubeProfiles.length > 0 ? (
+                    cubeProfiles.map(p => (
+                      <MenuItem key={p.name} value={p.name}>
+                        {p.name} - {p.description}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <>
+                      <MenuItem value="voip_trace">voip_trace - VoIP Trace logs (recommended)</MenuItem>
+                      <MenuItem value="sip_debug">sip_debug - SIP debug (CPU intensive)</MenuItem>
+                      <MenuItem value="config_dump">config_dump - Config/status dump</MenuItem>
+                    </>
+                  )}
+                </Select>
+              </FormControl>
+              {selectedCubeProfile.includes('debug') && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" gutterBottom>
+                    Debug Duration: {debugDuration} seconds
+                  </Typography>
+                  <Select
+                    size="small"
+                    value={debugDuration}
+                    onChange={e => setDebugDuration(Number(e.target.value))}
+                    sx={{ minWidth: 120 }}
+                  >
+                    <MenuItem value={15}>15 sec</MenuItem>
+                    <MenuItem value={30}>30 sec</MenuItem>
+                    <MenuItem value={60}>60 sec</MenuItem>
+                    <MenuItem value={120}>120 sec</MenuItem>
+                  </Select>
+                  <Alert severity="warning" sx={{ mt: 1 }}>
+                    Debug mode is CPU intensive and auto-disables after collection
+                  </Alert>
+                </Box>
+              )}
+            </Paper>
+          </Grid>
+        )}
+
+        {/* Expressway Profile Selection */}
+        {devices.some(d => d.type === 'expressway') && (
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Expressway Collection Profile
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <FormControl fullWidth>
+                <InputLabel>Profile</InputLabel>
+                <Select
+                  value={selectedExpresswayProfile}
+                  label="Profile"
+                  onChange={e => setSelectedExpresswayProfile(e.target.value)}
+                >
+                  {expresswayProfiles.length > 0 ? (
+                    expresswayProfiles.map(p => (
+                      <MenuItem key={p.name} value={p.name}>
+                        {p.name} - {p.description}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <>
+                      <MenuItem value="diagnostic_logs">diagnostic_logs - Diagnostic logs (faster)</MenuItem>
+                      <MenuItem value="diagnostic_full">diagnostic_full - Full with packet capture</MenuItem>
+                      <MenuItem value="event_log">event_log - Event log snapshot</MenuItem>
+                    </>
+                  )}
+                </Select>
+              </FormControl>
+            </Paper>
+          </Grid>
+        )}
+
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -839,6 +957,15 @@ export default function LogCollection() {
             <List dense>
               {devices.map(device => {
                 const config = deviceTypeConfig[device.type]
+                const getProfileLabel = () => {
+                  if (device.type === 'cucm') {
+                    return `${device.selectedNodes?.length || 0} nodes selected`
+                  } else if (device.type === 'cube') {
+                    return `Profile: ${selectedCubeProfile}`
+                  } else {
+                    return `Profile: ${selectedExpresswayProfile}`
+                  }
+                }
                 return (
                   <ListItem key={device.id}>
                     <ListItemIcon>
@@ -851,13 +978,7 @@ export default function LogCollection() {
                     </ListItemIcon>
                     <ListItemText
                       primary={device.host || 'Unknown host'}
-                      secondary={
-                        device.type === 'cucm'
-                          ? `${device.selectedNodes?.length || 0} nodes selected`
-                          : device.includeDebug
-                          ? `Debug mode (${device.debugDuration ?? 30}s)`
-                          : 'VoIP trace'
-                      }
+                      secondary={getProfileLabel()}
                     />
                   </ListItem>
                 )
