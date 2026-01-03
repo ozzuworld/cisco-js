@@ -158,7 +158,7 @@ export const jobService = {
   },
 
   /**
-   * Download all job artifacts as ZIP
+   * Download all job artifacts as ZIP (triggers browser download)
    */
   async downloadAllArtifacts(jobId: string): Promise<void> {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
@@ -166,6 +166,25 @@ export const jobService = {
 
     // Open download in new tab/trigger browser download
     window.open(url, '_blank')
+  },
+
+  /**
+   * Fetch all job artifacts as blob (for bundling)
+   */
+  async fetchArtifactsBlob(jobId: string): Promise<Blob> {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+    const response = await fetch(`${baseUrl}/jobs/${jobId}/download`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch job ${jobId} artifacts`)
+    }
+
+    return response.blob()
   },
 
   /**

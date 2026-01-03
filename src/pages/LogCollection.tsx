@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import JSZip from 'jszip'
 import {
   Box,
   Typography,
@@ -138,6 +139,10 @@ export default function LogCollection() {
     collectionId?: string  // For CUBE/Expressway
     jobId?: string         // For CUCM
   }>>({})
+
+  // Bundle download state
+  const [isBundling, setIsBundling] = useState(false)
+  const [bundleProgress, setBundleProgress] = useState(0)
 
   // Fallback profiles if API is unavailable
   const fallbackCubeProfiles: DeviceProfile[] = [
@@ -623,6 +628,78 @@ export default function LogCollection() {
         }
       }, index * 500) // 500ms delay between each download
     })
+  }
+
+  // Download all logs as a single bundled ZIP file
+  const handleDownloadBundle = async () => {
+    const downloadableDevices = devices.filter(device => {
+      const progress = deviceProgress[device.id]
+      return progress?.status === 'completed' && progress?.downloadAvailable
+    })
+
+    if (downloadableDevices.length === 0) {
+      enqueueSnackbar('No downloads available yet', { variant: 'warning' })
+      return
+    }
+
+    setIsBundling(true)
+    setBundleProgress(0)
+    enqueueSnackbar(`Bundling ${downloadableDevices.length} log file(s)...`, { variant: 'info' })
+
+    try {
+      const zip = new JSZip()
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+
+      for (let i = 0; i < downloadableDevices.length; i++) {
+        const device = downloadableDevices[i]
+        const progress = deviceProgress[device.id]
+
+        try {
+          let blob: Blob
+          let filename: string
+
+          if (device.type === 'cucm' && progress?.jobId) {
+            console.log(`[Bundle] Fetching CUCM job ${progress.jobId}`)
+            blob = await jobService.fetchArtifactsBlob(progress.jobId)
+            filename = `cucm_${device.host.replace(/\./g, '_')}.zip`
+          } else if ((device.type === 'cube' || device.type === 'expressway') && progress?.collectionId) {
+            console.log(`[Bundle] Fetching ${device.type} collection ${progress.collectionId}`)
+            blob = await logService.fetchCollectionBlob(progress.collectionId)
+            filename = `${device.type}_${device.host.replace(/\./g, '_')}.tar.gz`
+          } else {
+            continue
+          }
+
+          zip.file(filename, blob)
+          setBundleProgress(Math.round(((i + 1) / downloadableDevices.length) * 100))
+        } catch (error) {
+          console.error(`Failed to fetch logs from ${device.host}:`, error)
+          enqueueSnackbar(`Failed to fetch logs from ${device.host}`, { variant: 'error' })
+        }
+      }
+
+      // Generate the bundled ZIP
+      const bundleBlob = await zip.generateAsync({ type: 'blob' })
+      const bundleFilename = `log_collection_${timestamp}.zip`
+
+      // Trigger download
+      const url = URL.createObjectURL(bundleBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = bundleFilename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      enqueueSnackbar('Bundle download complete!', { variant: 'success' })
+    } catch (error) {
+      console.error('Bundle creation failed:', error)
+      enqueueSnackbar('Failed to create bundle', { variant: 'error' })
+    } finally {
+      setIsBundling(false)
+      setBundleProgress(0)
+    }
   }
 
   const handleNewCollection = () => {
@@ -1172,12 +1249,39 @@ export default function LogCollection() {
             </List>
           </Paper>
 
+          {/* Bundle progress indicator */}
+          {isBundling && (
+            <Paper sx={{ p: 2, mb: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <CircularProgress size={24} />
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="body2">Creating bundle...</Typography>
+                  <LinearProgress variant="determinate" value={bundleProgress} sx={{ mt: 1 }} />
+                </Box>
+                <Typography variant="body2">{bundleProgress}%</Typography>
+              </Box>
+            </Paper>
+          )}
+
           {/* Action buttons */}
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-            <Button variant="contained" startIcon={<Download />} onClick={handleDownloadAll}>
-              Download All ({devices.filter(d => deviceProgress[d.id]?.downloadAvailable).length})
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              startIcon={isBundling ? <CircularProgress size={20} color="inherit" /> : <Download />}
+              onClick={handleDownloadBundle}
+              disabled={isBundling}
+            >
+              {isBundling ? 'Bundling...' : `Download Bundle (${devices.filter(d => deviceProgress[d.id]?.downloadAvailable).length} files)`}
             </Button>
-            <Button variant="outlined" onClick={handleNewCollection}>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadAll}
+              disabled={isBundling}
+            >
+              Download Separately
+            </Button>
+            <Button variant="outlined" onClick={handleNewCollection} disabled={isBundling}>
               New Collection
             </Button>
           </Box>

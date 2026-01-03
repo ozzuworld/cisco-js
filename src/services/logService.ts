@@ -99,7 +99,7 @@ export const logService = {
   },
 
   /**
-   * Download collected logs
+   * Download collected logs (triggers browser download)
    */
   downloadCollection(collectionId: string, filename: string): void {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
@@ -111,6 +111,25 @@ export const logService = {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  },
+
+  /**
+   * Fetch collected logs as blob (for bundling)
+   */
+  async fetchCollectionBlob(collectionId: string): Promise<Blob> {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+    const response = await fetch(`${baseUrl}/logs/${collectionId}/download`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch collection ${collectionId}`)
+    }
+
+    return response.blob()
   },
 
   /**
