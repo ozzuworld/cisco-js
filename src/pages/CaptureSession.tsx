@@ -860,7 +860,7 @@ export default function CaptureSession() {
                       <Box sx={{ mt: 0.5 }}>
                         <Chip label={statusConf.label} color={statusConf.color} size="small" sx={{ mr: 1 }} />
                         {target.message && <Typography variant="caption">{target.message}</Typography>}
-                        {target.packets_captured !== undefined && (
+                        {target.packets_captured != null && (
                           <Typography variant="caption" sx={{ ml: 1 }}>
                             {target.packets_captured.toLocaleString()} packets
                           </Typography>
