@@ -596,28 +596,33 @@ export default function LogCollection() {
     }
   }
 
-  // Download all completed logs
+  // Download all completed logs with staggered timing to avoid browser blocking
   const handleDownloadAll = () => {
-    let downloadCount = 0
-    for (const device of devices) {
+    const downloadableDevices = devices.filter(device => {
       const progress = deviceProgress[device.id]
+      return progress?.status === 'completed' && progress?.downloadAvailable
+    })
 
-      if (progress?.status === 'completed' && progress?.downloadAvailable) {
-        if (device.type === 'cucm' && progress.jobId) {
-          jobService.downloadAllArtifacts(progress.jobId)
-          downloadCount++
-        } else if ((device.type === 'cube' || device.type === 'expressway') && progress.collectionId) {
-          logService.downloadCollection(progress.collectionId, `logs_${device.type}_${device.host}.tar.gz`)
-          downloadCount++
-        }
-      }
-    }
-
-    if (downloadCount > 0) {
-      enqueueSnackbar(`${downloadCount} download(s) started`, { variant: 'success' })
-    } else {
+    if (downloadableDevices.length === 0) {
       enqueueSnackbar('No downloads available yet', { variant: 'warning' })
+      return
     }
+
+    enqueueSnackbar(`Starting ${downloadableDevices.length} download(s)...`, { variant: 'success' })
+
+    // Stagger downloads with 500ms delay to prevent browser from blocking
+    downloadableDevices.forEach((device, index) => {
+      setTimeout(() => {
+        const progress = deviceProgress[device.id]
+        if (device.type === 'cucm' && progress?.jobId) {
+          console.log(`[Download All] CUCM job ${progress.jobId} (${index + 1}/${downloadableDevices.length})`)
+          jobService.downloadAllArtifacts(progress.jobId)
+        } else if ((device.type === 'cube' || device.type === 'expressway') && progress?.collectionId) {
+          console.log(`[Download All] ${device.type} collection ${progress.collectionId} (${index + 1}/${downloadableDevices.length})`)
+          logService.downloadCollection(progress.collectionId, `logs_${device.type}_${device.host}.tar.gz`)
+        }
+      }, index * 500) // 500ms delay between each download
+    })
   }
 
   const handleNewCollection = () => {
