@@ -131,7 +131,7 @@ export default function LogCollection() {
   // Collection state
   const [collectionStatus, setCollectionStatus] = useState<LogCollectionStatus | null>(null)
   const [collectionError, setCollectionError] = useState<string | null>(null)
-  const [deviceProgress, setDeviceProgress] = useState<Record<string, { status: string; progress: number }>>({})
+  const [deviceProgress, setDeviceProgress] = useState<Record<string, { status: string; progress: number; downloadAvailable?: boolean }>>({})
 
   // Fallback profiles if API is unavailable
   const fallbackCubeProfiles: DeviceProfile[] = [
@@ -480,6 +480,7 @@ export default function LogCollection() {
       try {
         const response = await logService.getCollectionStatus(collectionIdParam)
         const status = response.collection?.status || 'pending'
+        const downloadAvailable = response.download_available || false
 
         if (status === 'running' || status === 'pending') {
           setDeviceProgress(prev => ({
@@ -487,26 +488,37 @@ export default function LogCollection() {
             [deviceId]: {
               status: 'running',
               progress: Math.min((prev[deviceId]?.progress || 0) + 10, 90),
+              downloadAvailable: false,
             },
           }))
           setTimeout(poll, 3000)
         } else if (status === 'completed') {
-          setDeviceProgress(prev => ({
-            ...prev,
-            [deviceId]: { status: 'completed', progress: 100 },
-          }))
-          checkAllComplete()
+          // Only mark as fully complete when download is available
+          if (downloadAvailable) {
+            setDeviceProgress(prev => ({
+              ...prev,
+              [deviceId]: { status: 'completed', progress: 100, downloadAvailable: true },
+            }))
+            checkAllComplete()
+          } else {
+            // Status is completed but download not yet ready, keep polling
+            setDeviceProgress(prev => ({
+              ...prev,
+              [deviceId]: { status: 'completed', progress: 95, downloadAvailable: false },
+            }))
+            setTimeout(poll, 2000)
+          }
         } else if (status === 'failed' || status === 'cancelled') {
           setDeviceProgress(prev => ({
             ...prev,
-            [deviceId]: { status: 'failed', progress: 0 },
+            [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
           }))
           checkAllComplete()
         }
       } catch {
         setDeviceProgress(prev => ({
           ...prev,
-          [deviceId]: { status: 'failed', progress: 0 },
+          [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
         }))
         checkAllComplete()
       }
@@ -516,14 +528,17 @@ export default function LogCollection() {
   }
 
   const checkAllComplete = () => {
-    const allDone = Object.values(deviceProgress).every(
-      p => p.status === 'completed' || p.status === 'failed'
+    const progressValues = Object.values(deviceProgress)
+    if (progressValues.length === 0) return
+
+    const allDone = progressValues.every(
+      p => (p.status === 'completed' && p.downloadAvailable) || p.status === 'failed'
     )
     if (allDone) {
-      const allSuccess = Object.values(deviceProgress).every(p => p.status === 'completed')
+      const allSuccess = progressValues.every(p => p.status === 'completed' && p.downloadAvailable)
       if (allSuccess) {
         setCollectionStatus('completed')
-        enqueueSnackbar('All collections complete!', { variant: 'success' })
+        enqueueSnackbar('All collections complete! Downloads ready.', { variant: 'success' })
       } else {
         setCollectionStatus('failed')
       }
@@ -531,15 +546,31 @@ export default function LogCollection() {
   }
 
   const handleDownload = () => {
-    // Download from all devices
+    // Download from all devices that have completed with downloads available
+    let downloadCount = 0
     for (const device of devices) {
+      const progress = deviceProgress[device.id]
+
       if (device.type === 'cucm' && device.jobId) {
-        jobService.downloadAllArtifacts(device.jobId)
+        // CUCM jobs - check if completed
+        if (progress?.status === 'completed') {
+          jobService.downloadAllArtifacts(device.jobId)
+          downloadCount++
+        }
       } else if ((device.type === 'cube' || device.type === 'expressway') && device.collectionId) {
-        logService.downloadCollection(device.collectionId, `logs_${device.type}_${device.host}.zip`)
+        // CUBE/Expressway - check download_available flag
+        if (progress?.status === 'completed' && progress?.downloadAvailable) {
+          logService.downloadCollection(device.collectionId, `logs_${device.type}_${device.host}.tar.gz`)
+          downloadCount++
+        }
       }
     }
-    enqueueSnackbar('Downloads started', { variant: 'success' })
+
+    if (downloadCount > 0) {
+      enqueueSnackbar(`${downloadCount} download(s) started`, { variant: 'success' })
+    } else {
+      enqueueSnackbar('No downloads available yet', { variant: 'warning' })
+    }
   }
 
   const handleNewCollection = () => {
