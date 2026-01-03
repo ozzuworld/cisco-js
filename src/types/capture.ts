@@ -70,3 +70,151 @@ export interface StopCaptureResponse {
   status: CaptureStatus
   message: string
 }
+
+// ==========================================
+// Orchestrated Capture Session Types
+// ==========================================
+
+// Session status values
+export type CaptureSessionStatus =
+  | 'pending'      // Created, not started
+  | 'configuring'  // Connecting to devices, configuring CSR EPC
+  | 'ready'        // All devices ready (brief moment before capture)
+  | 'starting'     // Sending start commands
+  | 'capturing'    // Active capture - show countdown timer!
+  | 'stopping'     // Stopping captures
+  | 'collecting'   // Retrieving files from devices
+  | 'completed'    // Done - download available
+  | 'partial'      // Some devices succeeded - download available
+  | 'failed'       // All devices failed
+  | 'cancelled'    // User cancelled
+
+// Per-target status values
+export type CaptureTargetStatus =
+  | 'pending'
+  | 'configuring'  // CSR only: takes ~150 seconds
+  | 'ready'
+  | 'capturing'
+  | 'stopping'
+  | 'collecting'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+
+// Target request for multi-device capture
+export interface CaptureTargetRequest {
+  device_type: CaptureDeviceType
+  host: string
+  port?: number
+  interface?: string
+}
+
+// Start capture session request
+export interface StartCaptureSessionRequest {
+  name?: string
+  duration_sec: number
+  filter?: CaptureFilter
+  targets: CaptureTargetRequest[]
+  username: string
+  password: string
+}
+
+// Target info in session response
+export interface CaptureTargetInfo {
+  device_type: CaptureDeviceType
+  host: string
+  port: number
+  interface: string
+  status: CaptureTargetStatus
+  error?: string
+  message?: string
+  config_started_at?: string   // ISO timestamp
+  capture_started_at?: string  // ISO timestamp - USE FOR TIMELINE
+  capture_stopped_at?: string  // ISO timestamp
+  completed_at?: string        // ISO timestamp
+  packets_captured?: number
+  file_size_bytes?: number
+  filename?: string
+}
+
+// Session info
+export interface CaptureSessionInfo {
+  session_id: string
+  name?: string
+  status: CaptureSessionStatus
+  created_at: string
+  capture_started_at?: string
+  completed_at?: string
+  duration_sec: number
+  targets: CaptureTargetInfo[]
+  bundle_filename?: string
+}
+
+// Session responses
+export interface StartCaptureSessionResponse {
+  session_id: string
+  status: CaptureSessionStatus
+  message: string
+  created_at: string
+  targets: CaptureTargetInfo[]
+}
+
+export interface CaptureSessionStatusResponse {
+  session: CaptureSessionInfo
+  download_available: boolean
+  elapsed_sec?: number    // Only during 'capturing' status
+  remaining_sec?: number  // Only during 'capturing' status
+}
+
+export interface CaptureSessionListResponse {
+  sessions: CaptureSessionInfo[]
+  total: number
+}
+
+export interface StopCaptureSessionResponse {
+  session_id: string
+  status: CaptureSessionStatus
+  message: string
+}
+
+// Helper functions
+export function shouldPollCaptureSession(status: CaptureSessionStatus): boolean {
+  return !['completed', 'partial', 'failed', 'cancelled'].includes(status)
+}
+
+export function getSessionPollingInterval(status: CaptureSessionStatus): number {
+  switch (status) {
+    case 'pending':
+    case 'configuring':
+    case 'ready':
+    case 'starting':
+      return 1000  // 1 second - config phase
+    case 'capturing':
+      return 2000  // 2 seconds - show countdown
+    case 'stopping':
+    case 'collecting':
+      return 1000  // 1 second - finishing up
+    default:
+      return 2000
+  }
+}
+
+export function canDownloadSession(status: CaptureSessionStatus): boolean {
+  return status === 'completed' || status === 'partial'
+}
+
+// Default interfaces by device type
+export const defaultCaptureInterfaces: Record<CaptureDeviceType, string> = {
+  cucm: 'eth0',
+  cube: 'GigabitEthernet1',
+  csr1000v: 'GigabitEthernet1',
+  expressway: 'eth0',
+}
+
+// Default ports by device type
+export const defaultCapturePorts: Record<CaptureDeviceType, number> = {
+  cucm: 22,
+  cube: 22,
+  csr1000v: 22,
+  expressway: 443,
+}

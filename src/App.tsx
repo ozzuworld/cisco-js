@@ -13,7 +13,7 @@ import JobDetails from './pages/JobDetails'
 import NewJob from './pages/NewJob'
 import LogCollection from './pages/LogCollection'
 import Health from './pages/Health'
-import Captures from './pages/Captures'
+import CaptureSession from './pages/CaptureSession'
 import Profiles from './pages/Profiles'
 import Settings from './pages/Settings'
 
@@ -49,7 +49,7 @@ function App() {
                   <Route path="jobs/:jobId" element={<JobDetails />} />
                   <Route path="logs/new" element={<LogCollection />} />
                   <Route path="health" element={<Health />} />
-                  <Route path="captures" element={<Captures />} />
+                  <Route path="captures" element={<CaptureSession />} />
                   <Route path="profiles" element={<Profiles />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>
