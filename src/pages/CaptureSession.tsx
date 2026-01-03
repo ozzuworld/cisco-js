@@ -87,8 +87,6 @@ interface TargetEntry {
   host: string
   port?: number
   interface?: string
-  username: string
-  password: string
 }
 
 const steps = ['Select Devices', 'Configure', 'Credentials', 'Review']
@@ -134,8 +132,10 @@ export default function CaptureSession() {
   const [filterHost, setFilterHost] = useState('')
   const [filterPort, setFilterPort] = useState<number | ''>('')
 
-  // Credentials visibility (per device, keyed by target id)
-  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({})
+  // Global credentials (used for all devices)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   // Session state
   const [activeSession, setActiveSession] = useState<CaptureSessionStatusResponse | null>(null)
@@ -228,8 +228,6 @@ export default function CaptureSession() {
       host: newHost,
       port: newPort || defaultCapturePorts[newDeviceType],
       interface: newInterface || defaultCaptureInterfaces[newDeviceType],
-      username: '',
-      password: '',
     }
 
     setTargets([...targets, newTarget])
@@ -243,17 +241,14 @@ export default function CaptureSession() {
     setTargets(targets.filter(t => t.id !== id))
   }
 
-  // Check if all targets have credentials filled in
-  const allCredentialsFilled = targets.every(t => t.username && t.password)
-
   const handleStartSession = async () => {
     if (targets.length === 0) {
       enqueueSnackbar('Please add at least one device', { variant: 'warning' })
       return
     }
 
-    if (!allCredentialsFilled) {
-      enqueueSnackbar('Please enter credentials for all devices', { variant: 'warning' })
+    if (!username || !password) {
+      enqueueSnackbar('Please enter credentials', { variant: 'warning' })
       return
     }
 
@@ -273,9 +268,9 @@ export default function CaptureSession() {
           host: t.host,
           port: t.port,
           interface: t.interface,
-          username: t.username,
-          password: t.password,
         })),
+        username,
+        password,
       })
 
       // Start polling
@@ -334,7 +329,9 @@ export default function CaptureSession() {
     setDuration(60)
     setFilterHost('')
     setFilterPort('')
-    setShowPasswords({})
+    setUsername('')
+    setPassword('')
+    setShowPassword(false)
     setActiveSession(null)
     setCountdown(null)
   }
@@ -594,78 +591,53 @@ export default function CaptureSession() {
     </Box>
   )
 
-  // Update target credentials
-  const updateTargetCredentials = (id: string, field: 'username' | 'password', value: string) => {
-    setTargets(targets.map(t =>
-      t.id === id ? { ...t, [field]: value } : t
-    ))
-  }
-
-  // Toggle password visibility for a target
-  const toggleShowPassword = (id: string) => {
-    setShowPasswords(prev => ({ ...prev, [id]: !prev[id] }))
-  }
-
   // Render wizard step 3: Credentials
   const renderCredentialsStep = () => (
     <Box>
       <Typography variant="h5" gutterBottom>Enter Credentials</Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Enter credentials for each device ({targets.length} device{targets.length !== 1 ? 's' : ''}).
+        Credentials will be used for all {targets.length} device(s).
       </Typography>
 
-      <Grid container spacing={3}>
-        {targets.map((target) => {
-          const config = deviceTypeConfig[target.device_type]
-          return (
-            <Grid item xs={12} md={6} key={target.id}>
-              <Paper sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <Chip
-                    icon={config.icon}
-                    label={config.label}
-                    size="small"
-                    sx={{ bgcolor: config.color, color: 'white' }}
-                  />
-                  <Typography variant="subtitle1" fontWeight="medium">
-                    {target.host}
-                  </Typography>
-                </Box>
-                <Divider sx={{ my: 2 }} />
+      <Grid container spacing={3} justifyContent="center">
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>Device Credentials</Typography>
+            <Divider sx={{ my: 2 }} />
 
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <TextField
-                    label="Username"
-                    value={target.username}
-                    onChange={e => updateTargetCredentials(target.id, 'username', e.target.value)}
-                    required
-                    fullWidth
-                    size="small"
-                  />
+            <Alert severity="info" sx={{ mb: 3 }}>
+              The same credentials will be used for all devices. Ensure all devices share these credentials.
+            </Alert>
 
-                  <TextField
-                    label="Password"
-                    type={showPasswords[target.id] ? 'text' : 'password'}
-                    value={target.password}
-                    onChange={e => updateTargetCredentials(target.id, 'password', e.target.value)}
-                    required
-                    fullWidth
-                    size="small"
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton onClick={() => toggleShowPassword(target.id)} edge="end" size="small">
-                            {showPasswords[target.id] ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Box>
-              </Paper>
-            </Grid>
-          )
-        })}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                label="Username"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                required
+                fullWidth
+              />
+
+              <TextField
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                fullWidth
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+          </Paper>
+        </Grid>
       </Grid>
     </Box>
   )
@@ -737,7 +709,7 @@ export default function CaptureSession() {
                     </ListItemIcon>
                     <ListItemText
                       primary={target.host}
-                      secondary={`${target.interface} • User: ${target.username}`}
+                      secondary={target.interface}
                     />
                   </ListItem>
                 )
@@ -1077,7 +1049,7 @@ export default function CaptureSession() {
                 variant="contained"
                 endIcon={<ArrowForward />}
                 onClick={() => setCurrentStep('review')}
-                disabled={!allCredentialsFilled}
+                disabled={!username || !password}
               >
                 Next: Review
               </Button>
