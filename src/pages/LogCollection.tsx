@@ -449,15 +449,15 @@ export default function LogCollection() {
         } else if (status.status === 'completed') {
           setDeviceProgress(prev => ({
             ...prev,
-            [deviceId]: { status: 'completed', progress: 100 },
+            [deviceId]: { status: 'completed', progress: 100, downloadAvailable: true },
           }))
-          checkAllComplete()
+          // useEffect will handle completion check
         } else if (status.status === 'failed') {
           setDeviceProgress(prev => ({
             ...prev,
-            [deviceId]: { status: 'failed', progress: 0 },
+            [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
           }))
-          checkAllComplete()
+          // useEffect will handle completion check
         } else {
           // Keep polling for pending status
           setTimeout(poll, 3000)
@@ -465,9 +465,9 @@ export default function LogCollection() {
       } catch {
         setDeviceProgress(prev => ({
           ...prev,
-          [deviceId]: { status: 'failed', progress: 0 },
+          [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
         }))
-        checkAllComplete()
+        // useEffect will handle completion check
       }
     }
 
@@ -499,7 +499,7 @@ export default function LogCollection() {
               ...prev,
               [deviceId]: { status: 'completed', progress: 100, downloadAvailable: true },
             }))
-            checkAllComplete()
+            // useEffect will handle completion check
           } else {
             // Status is completed but download not yet ready, keep polling
             setDeviceProgress(prev => ({
@@ -513,28 +513,31 @@ export default function LogCollection() {
             ...prev,
             [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
           }))
-          checkAllComplete()
+          // useEffect will handle completion check
         }
       } catch {
         setDeviceProgress(prev => ({
           ...prev,
           [deviceId]: { status: 'failed', progress: 0, downloadAvailable: false },
         }))
-        checkAllComplete()
+        // useEffect will handle completion check
       }
     }
 
     poll()
   }
 
-  const checkAllComplete = () => {
+  // Watch deviceProgress and check for completion when all devices are done
+  useEffect(() => {
     const progressValues = Object.values(deviceProgress)
     if (progressValues.length === 0) return
+    if (progressValues.length !== devices.length) return // Wait for all devices to have progress
 
     const allDone = progressValues.every(
       p => (p.status === 'completed' && p.downloadAvailable) || p.status === 'failed'
     )
-    if (allDone) {
+
+    if (allDone && collectionStatus !== 'completed' && collectionStatus !== 'failed') {
       const allSuccess = progressValues.every(p => p.status === 'completed' && p.downloadAvailable)
       if (allSuccess) {
         setCollectionStatus('completed')
@@ -543,7 +546,7 @@ export default function LogCollection() {
         setCollectionStatus('failed')
       }
     }
-  }
+  }, [deviceProgress, devices.length, collectionStatus, enqueueSnackbar])
 
   const handleDownload = () => {
     // Download from all devices that have completed with downloads available
