@@ -376,8 +376,10 @@ export default function LogCollection() {
 
         try {
           // Determine profile based on device type
-          const profile = device.type === 'cube' ? selectedCubeProfile : selectedExpresswayProfile
-          const isDebugProfile = profile.includes('debug')
+          const profileName = device.type === 'cube' ? selectedCubeProfile : selectedExpresswayProfile
+          const profiles = device.type === 'cube' ? cubeProfiles : expresswayProfiles
+          const profileInfo = profiles.find(p => p.name === profileName)
+          const isDebugProfile = profileInfo?.include_debug || profileName.includes('debug')
 
           const response = await logService.startCollection({
             device_type: device.type as LogDeviceType,
@@ -385,7 +387,7 @@ export default function LogCollection() {
             port: device.port,
             username: device.username,
             password: device.password,
-            profile: profile,
+            profile: profileName,
             duration_sec: isDebugProfile ? debugDuration : undefined,
           })
 
@@ -896,27 +898,33 @@ export default function LogCollection() {
                   )}
                 </Select>
               </FormControl>
-              {selectedCubeProfile.includes('debug') && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" gutterBottom>
-                    Debug Duration: {debugDuration} seconds
-                  </Typography>
-                  <Select
-                    size="small"
-                    value={debugDuration}
-                    onChange={e => setDebugDuration(Number(e.target.value))}
-                    sx={{ minWidth: 120 }}
-                  >
-                    <MenuItem value={15}>15 sec</MenuItem>
-                    <MenuItem value={30}>30 sec</MenuItem>
-                    <MenuItem value={60}>60 sec</MenuItem>
-                    <MenuItem value={120}>120 sec</MenuItem>
-                  </Select>
-                  <Alert severity="warning" sx={{ mt: 1 }}>
-                    Debug mode is CPU intensive and auto-disables after collection
-                  </Alert>
-                </Box>
-              )}
+              {(() => {
+                const selectedProfile = cubeProfiles.find(p => p.name === selectedCubeProfile)
+                const isDebugProfile = selectedProfile?.include_debug || selectedCubeProfile.includes('debug')
+                return isDebugProfile ? (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2" gutterBottom>
+                      Debug Duration: {debugDuration} seconds
+                    </Typography>
+                    <Select
+                      size="small"
+                      value={debugDuration}
+                      onChange={e => setDebugDuration(Number(e.target.value))}
+                      sx={{ minWidth: 120 }}
+                    >
+                      <MenuItem value={15}>15 sec</MenuItem>
+                      <MenuItem value={30}>30 sec</MenuItem>
+                      <MenuItem value={60}>60 sec</MenuItem>
+                      <MenuItem value={120}>120 sec</MenuItem>
+                      <MenuItem value={180}>180 sec</MenuItem>
+                      <MenuItem value={300}>300 sec</MenuItem>
+                    </Select>
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                      Debug mode is CPU intensive and auto-disables after collection
+                    </Alert>
+                  </Box>
+                ) : null
+              })()}
             </Paper>
           </Grid>
         )}

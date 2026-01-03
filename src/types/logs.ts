@@ -10,7 +10,12 @@ export interface DeviceProfile {
   description: string
   device_type: LogDeviceType
   method: string
-  tcpdump?: boolean  // Expressway only
+  // CUBE-specific
+  commands?: string[]
+  include_debug?: boolean
+  duration_sec?: number | null
+  // Expressway-specific
+  tcpdump?: boolean
 }
 
 // Response from GET /logs/profiles

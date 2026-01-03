@@ -131,7 +131,14 @@ export const jobService = {
    * Cancel running job
    */
   async cancelJob(jobId: string): Promise<{ success: boolean; message: string }> {
-    return apiClient.delete(`/jobs/${jobId}`)
+    return apiClient.post(`/jobs/${jobId}/cancel`)
+  },
+
+  /**
+   * Retry failed nodes in a job
+   */
+  async retryFailedNodes(jobId: string): Promise<{ success: boolean; message: string }> {
+    return apiClient.post(`/jobs/${jobId}/retry-failed`)
   },
 
   /**
@@ -164,10 +171,30 @@ export const jobService = {
   /**
    * Download single artifact
    */
-  async downloadArtifact(artifactId: string): Promise<void> {
+  async downloadArtifact(jobId: string, artifactId: string): Promise<void> {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-    const url = `${baseUrl}/artifacts/${artifactId}/download`
+    const url = `${baseUrl}/jobs/${jobId}/artifacts/${artifactId}/download`
 
     window.open(url, '_blank')
+  },
+
+  /**
+   * Download logs for a specific node
+   */
+  async downloadNodeArtifacts(jobId: string, nodeIp: string): Promise<void> {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+    const url = `${baseUrl}/jobs/${jobId}/nodes/${nodeIp}/download`
+
+    window.open(url, '_blank')
+  },
+
+  /**
+   * Get job transcript (command output log)
+   */
+  async getJobTranscript(jobId: string, nodeIp?: string): Promise<string> {
+    const url = nodeIp
+      ? `/jobs/${jobId}/transcript?node=${nodeIp}`
+      : `/jobs/${jobId}/transcript`
+    return apiClient.get<string>(url)
   },
 }
