@@ -107,6 +107,8 @@ export interface CaptureTargetRequest {
   host: string
   port?: number
   interface?: string
+  username?: string   // Per-device credentials
+  password?: string   // Per-device credentials
 }
 
 // Start capture session request
@@ -115,8 +117,8 @@ export interface StartCaptureSessionRequest {
   duration_sec: number
   filter?: CaptureFilter
   targets: CaptureTargetRequest[]
-  username: string   // Global credentials for all devices
-  password: string   // Global credentials for all devices
+  username?: string   // Optional global credentials (fallback)
+  password?: string   // Optional global credentials (fallback)
 }
 
 // Target info in session response
