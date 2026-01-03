@@ -133,27 +133,40 @@ export default function LogCollection() {
   const [collectionError, setCollectionError] = useState<string | null>(null)
   const [deviceProgress, setDeviceProgress] = useState<Record<string, { status: string; progress: number }>>({})
 
+  // Fallback profiles if API is unavailable
+  const fallbackCubeProfiles: DeviceProfile[] = [
+    { name: 'voip_trace', description: 'VoIP Trace logs - SIP signaling (recommended)', device_type: 'cube', method: 'voip_trace', include_debug: false },
+    { name: 'voip_trace_detail', description: 'Detailed VoIP Trace with internal events', device_type: 'cube', method: 'voip_trace', include_debug: false },
+    { name: 'sip_debug', description: 'SIP debug messages (CPU intensive)', device_type: 'cube', method: 'debug', include_debug: true, duration_sec: 30 },
+    { name: 'voice_debug_full', description: 'Full voice debugging (CPU intensive)', device_type: 'cube', method: 'debug', include_debug: true, duration_sec: 30 },
+    { name: 'config_dump', description: 'Configuration and status snapshot', device_type: 'cube', method: 'config', include_debug: false },
+  ]
+
+  const fallbackExpresswayProfiles: DeviceProfile[] = [
+    { name: 'diagnostic_full', description: 'Full diagnostic logs with packet capture', device_type: 'expressway', method: 'diagnostic', tcpdump: true },
+    { name: 'diagnostic_logs', description: 'Diagnostic logs only (faster)', device_type: 'expressway', method: 'diagnostic', tcpdump: false },
+    { name: 'event_log', description: 'Event log snapshot (quick status)', device_type: 'expressway', method: 'event_log', tcpdump: false },
+  ]
+
   // Fetch device profiles on mount
   useEffect(() => {
     const fetchDeviceProfiles = async () => {
       try {
         const response = await logService.getDeviceProfiles()
-        const cubeProfs = response.cube_profiles || []
-        const expProfs = response.expressway_profiles || []
+        const cubeProfs = response.cube_profiles?.length > 0 ? response.cube_profiles : fallbackCubeProfiles
+        const expProfs = response.expressway_profiles?.length > 0 ? response.expressway_profiles : fallbackExpresswayProfiles
         setCubeProfiles(cubeProfs)
         setExpresswayProfiles(expProfs)
         // Set default selections to first profile
-        if (cubeProfs.length > 0) {
-          setSelectedCubeProfile(cubeProfs[0].name)
-        }
-        if (expProfs.length > 0) {
-          setSelectedExpresswayProfile(expProfs[0].name)
-        }
+        setSelectedCubeProfile(cubeProfs[0].name)
+        setSelectedExpresswayProfile(expProfs[0].name)
       } catch (error) {
         console.error('Failed to fetch device profiles:', error)
-        // Set fallback defaults if API fails
-        setSelectedCubeProfile('voip_trace')
-        setSelectedExpresswayProfile('diagnostic_logs')
+        // Use fallback profiles if API fails
+        setCubeProfiles(fallbackCubeProfiles)
+        setExpresswayProfiles(fallbackExpresswayProfiles)
+        setSelectedCubeProfile(fallbackCubeProfiles[0].name)
+        setSelectedExpresswayProfile(fallbackExpresswayProfiles[0].name)
       }
     }
     fetchDeviceProfiles()
