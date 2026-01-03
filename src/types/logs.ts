@@ -54,6 +54,7 @@ export interface LogCollectionInfo {
   total_size_bytes?: number
   error?: string
   files?: LogFileInfo[]
+  download_available?: boolean  // Backend includes this inside collection object
 }
 
 export interface LogFileInfo {

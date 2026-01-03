@@ -480,7 +480,8 @@ export default function LogCollection() {
       try {
         const response = await logService.getCollectionStatus(collectionIdParam)
         const status = response.collection?.status || 'pending'
-        const downloadAvailable = response.download_available || false
+        // Backend returns download_available inside collection object
+        const downloadAvailable = response.collection?.download_available || response.download_available || false
 
         if (status === 'running' || status === 'pending') {
           setDeviceProgress(prev => ({
