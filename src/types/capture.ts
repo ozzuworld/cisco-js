@@ -107,6 +107,8 @@ export interface CaptureTargetRequest {
   host: string
   port?: number
   interface?: string
+  username: string    // Per-device credentials
+  password: string    // Per-device credentials
 }
 
 // Start capture session request
@@ -115,8 +117,6 @@ export interface StartCaptureSessionRequest {
   duration_sec: number
   filter?: CaptureFilter
   targets: CaptureTargetRequest[]
-  username: string
-  password: string
 }
 
 // Target info in session response
