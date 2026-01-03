@@ -107,8 +107,8 @@ export interface CaptureTargetRequest {
   host: string
   port?: number
   interface?: string
-  username: string    // Per-device credentials
-  password: string    // Per-device credentials
+  username?: string    // Per-device credentials (optional, uses global if not set)
+  password?: string    // Per-device credentials (optional, uses global if not set)
 }
 
 // Start capture session request

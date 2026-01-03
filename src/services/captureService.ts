@@ -72,6 +72,7 @@ export const captureService = {
    */
   async startSession(request: StartCaptureSessionRequest): Promise<StartCaptureSessionResponse> {
     console.log('Starting capture session with', request.targets.length, 'targets')
+    console.log('Request payload:', JSON.stringify(request, null, 2))
     return apiClient.post<StartCaptureSessionResponse>('/capture-sessions', request)
   },
 

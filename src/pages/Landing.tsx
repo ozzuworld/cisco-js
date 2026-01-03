@@ -138,17 +138,26 @@ export default function Landing() {
                   </Typography>
                 </CardContent>
                 <Box sx={{ p: 2, pt: 0 }}>
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    endIcon={<ArrowForward />}
+                  <Box
                     sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 1,
+                      py: 1,
+                      px: 2,
+                      borderRadius: 1,
                       bgcolor: card.color,
-                      '&:hover': { bgcolor: card.color, filter: 'brightness(0.9)' },
+                      color: 'white',
+                      fontWeight: 500,
+                      fontSize: '0.875rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.02em',
                     }}
                   >
                     {card.buttonText}
-                  </Button>
+                    <ArrowForward fontSize="small" />
+                  </Box>
                 </Box>
               </CardActionArea>
             </Card>
