@@ -308,13 +308,9 @@ export default function LogCollection() {
             publisher_host: device.host,
             username: device.username,
             password: device.password,
-            port: device.port,
+            port: device.port || 22,
             nodes: device.selectedNodes || [],
             profile: selectedProfile || 'default',
-            options: {
-              time_mode: timeRangeType === 'absolute' ? 'range' : 'relative',
-              reltime_minutes: timeRangeType === 'relative' ? relativeMinutes : undefined,
-            },
           })
 
           // Update device with job ID
@@ -1020,11 +1016,13 @@ export default function LogCollection() {
               {currentStep === 'devices' ? 'Cancel' : 'Back'}
             </Button>
 
-            {currentStep === 'devices' ? (
+            {currentStep === 'devices' ? (() => {
+              const blockingReason = getBlockingReason()
+              return (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {getBlockingReason() && (
+                {blockingReason && (
                   <Typography variant="body2" color="text.secondary">
-                    {getBlockingReason()}
+                    {blockingReason}
                   </Typography>
                 )}
                 <Button
@@ -1036,7 +1034,8 @@ export default function LogCollection() {
                   Next: Options
                 </Button>
               </Box>
-            ) : (
+              )
+            })() : (
               <Button
                 variant="contained"
                 endIcon={<ArrowForward />}
