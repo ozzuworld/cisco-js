@@ -124,8 +124,8 @@ export default function LogCollection() {
   // Collection options - CUBE/Expressway
   const [cubeProfiles, setCubeProfiles] = useState<DeviceProfile[]>([])
   const [expresswayProfiles, setExpresswayProfiles] = useState<DeviceProfile[]>([])
-  const [selectedCubeProfile, setSelectedCubeProfile] = useState('voip_trace')
-  const [selectedExpresswayProfile, setSelectedExpresswayProfile] = useState('diagnostic_logs')
+  const [selectedCubeProfile, setSelectedCubeProfile] = useState('')
+  const [selectedExpresswayProfile, setSelectedExpresswayProfile] = useState('')
   const [debugDuration, setDebugDuration] = useState(30)
 
   // Collection state
@@ -138,10 +138,22 @@ export default function LogCollection() {
     const fetchDeviceProfiles = async () => {
       try {
         const response = await logService.getDeviceProfiles()
-        setCubeProfiles(response.cube_profiles || [])
-        setExpresswayProfiles(response.expressway_profiles || [])
+        const cubeProfs = response.cube_profiles || []
+        const expProfs = response.expressway_profiles || []
+        setCubeProfiles(cubeProfs)
+        setExpresswayProfiles(expProfs)
+        // Set default selections to first profile
+        if (cubeProfs.length > 0) {
+          setSelectedCubeProfile(cubeProfs[0].name)
+        }
+        if (expProfs.length > 0) {
+          setSelectedExpresswayProfile(expProfs[0].name)
+        }
       } catch (error) {
         console.error('Failed to fetch device profiles:', error)
+        // Set fallback defaults if API fails
+        setSelectedCubeProfile('voip_trace')
+        setSelectedExpresswayProfile('diagnostic_logs')
       }
     }
     fetchDeviceProfiles()
@@ -872,20 +884,15 @@ export default function LogCollection() {
                 <Select
                   value={selectedCubeProfile}
                   label="Profile"
-                  onChange={e => setSelectedCubeProfile(e.target.value)}
+                  onChange={e => setSelectedCubeProfile(e.target.value as string)}
                 >
-                  {cubeProfiles.length > 0 ? (
-                    cubeProfiles.map(p => (
-                      <MenuItem key={p.name} value={p.name}>
-                        {p.name} - {p.description}
-                      </MenuItem>
-                    ))
-                  ) : (
-                    <>
-                      <MenuItem value="voip_trace">voip_trace - VoIP Trace logs (recommended)</MenuItem>
-                      <MenuItem value="sip_debug">sip_debug - SIP debug (CPU intensive)</MenuItem>
-                      <MenuItem value="config_dump">config_dump - Config/status dump</MenuItem>
-                    </>
+                  {cubeProfiles.map(p => (
+                    <MenuItem key={p.name} value={p.name}>
+                      {p.name} - {p.description}
+                    </MenuItem>
+                  ))}
+                  {cubeProfiles.length === 0 && (
+                    <MenuItem value="" disabled>Loading profiles...</MenuItem>
                   )}
                 </Select>
               </FormControl>
@@ -927,20 +934,15 @@ export default function LogCollection() {
                 <Select
                   value={selectedExpresswayProfile}
                   label="Profile"
-                  onChange={e => setSelectedExpresswayProfile(e.target.value)}
+                  onChange={e => setSelectedExpresswayProfile(e.target.value as string)}
                 >
-                  {expresswayProfiles.length > 0 ? (
-                    expresswayProfiles.map(p => (
-                      <MenuItem key={p.name} value={p.name}>
-                        {p.name} - {p.description}
-                      </MenuItem>
-                    ))
-                  ) : (
-                    <>
-                      <MenuItem value="diagnostic_logs">diagnostic_logs - Diagnostic logs (faster)</MenuItem>
-                      <MenuItem value="diagnostic_full">diagnostic_full - Full with packet capture</MenuItem>
-                      <MenuItem value="event_log">event_log - Event log snapshot</MenuItem>
-                    </>
+                  {expresswayProfiles.map(p => (
+                    <MenuItem key={p.name} value={p.name}>
+                      {p.name} - {p.description}
+                    </MenuItem>
+                  ))}
+                  {expresswayProfiles.length === 0 && (
+                    <MenuItem value="" disabled>Loading profiles...</MenuItem>
                   )}
                 </Select>
               </FormControl>
