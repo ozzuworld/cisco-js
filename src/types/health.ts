@@ -126,3 +126,200 @@ export interface CoreFilesStatus {
   core_files: string[]
   message: string | null
 }
+
+// ==========================================
+// Multi-Device Health Check Types
+// ==========================================
+
+export type DeviceType = 'cucm' | 'cube' | 'expressway'
+
+// Check types for each device
+export type CUCMHealthCheck = 'replication' | 'services' | 'ntp' | 'diagnostics' | 'cores'
+export type CUBEHealthCheck = 'system' | 'environment' | 'interfaces' | 'voice_calls' | 'sip_status' | 'sip_registration' | 'dsp' | 'ntp' | 'redundancy'
+export type ExpresswayHealthCheck = 'cluster' | 'licensing' | 'alarms' | 'ntp'
+
+// Request types
+export interface DeviceHealthTarget {
+  device_type: DeviceType
+  host: string
+  port?: number
+  username?: string
+  password?: string
+  cucm_checks?: CUCMHealthCheck[]
+  cube_checks?: CUBEHealthCheck[]
+  expressway_checks?: ExpresswayHealthCheck[]
+}
+
+export interface DeviceHealthRequest {
+  devices: DeviceHealthTarget[]
+  username?: string
+  password?: string
+  connect_timeout_sec?: number
+  command_timeout_sec?: number
+}
+
+// Response types
+export interface DeviceHealthResponse {
+  overall_status: HealthStatus
+  checked_at: string
+  message: string
+  total_devices: number
+  healthy_devices: number
+  degraded_devices: number
+  critical_devices: number
+  unknown_devices: number
+  devices: DeviceHealthResult[]
+}
+
+export interface DeviceHealthResult {
+  device_type: DeviceType
+  host: string
+  status: HealthStatus
+  reachable: boolean
+  checked_at: string
+  message: string
+  error?: string
+  cucm_checks?: CUCMCheckResults
+  cube_checks?: CUBECheckResults
+  expressway_checks?: ExpresswayCheckResults
+}
+
+// CUCM Check Results (reuse existing types where possible)
+export interface CUCMCheckResults {
+  replication?: ReplicationStatus
+  services?: ServicesStatus
+  ntp?: NTPStatus
+  diagnostics?: DiagnosticsStatus
+  cores?: CoreFilesStatus
+}
+
+// CUBE/IOS-XE Check Results
+export interface CUBECheckResults {
+  system?: CUBESystemStatus
+  environment?: CUBEEnvironmentStatus
+  interfaces?: CUBEInterfacesStatus
+  voice_calls?: CUBEVoiceCallsStatus
+  sip_status?: CUBESIPStatus
+  sip_registration?: CUBESIPRegistrationStatus
+  dsp?: CUBEDSPStatus
+  ntp?: CUBENTPStatus
+  redundancy?: CUBERedundancyStatus
+}
+
+export interface CUBESystemStatus {
+  status: HealthStatus
+  hostname?: string
+  version?: string
+  uptime_seconds?: number
+  message?: string
+}
+
+export interface CUBEEnvironmentStatus {
+  status: HealthStatus
+  temperature_ok?: boolean
+  power_ok?: boolean
+  message?: string
+}
+
+export interface CUBEInterfacesStatus {
+  status: HealthStatus
+  total_interfaces?: number
+  up_interfaces?: number
+  down_interfaces?: number
+  interfaces?: Array<{
+    name: string
+    status: 'up' | 'down' | 'administratively down'
+    ip_address?: string
+  }>
+  message?: string
+}
+
+export interface CUBEVoiceCallsStatus {
+  status: HealthStatus
+  active_calls?: number
+  total_calls?: number
+  message?: string
+}
+
+export interface CUBESIPStatus {
+  status: HealthStatus
+  active_calls?: number
+  total_registrations?: number
+  message?: string
+}
+
+export interface CUBESIPRegistrationStatus {
+  status: HealthStatus
+  registered_endpoints?: number
+  message?: string
+}
+
+export interface CUBEDSPStatus {
+  status: HealthStatus
+  dsp_utilization?: number
+  message?: string
+}
+
+export interface CUBENTPStatus {
+  status: HealthStatus
+  synchronized?: boolean
+  stratum?: number
+  message?: string
+}
+
+export interface CUBERedundancyStatus {
+  status: HealthStatus
+  ha_enabled?: boolean
+  peer_status?: string
+  message?: string
+}
+
+// Expressway Check Results
+export interface ExpresswayCheckResults {
+  cluster?: ExpresswayClusterStatus
+  licensing?: ExpresswayLicensingStatus
+  alarms?: ExpresswayAlarmsStatus
+  ntp?: ExpresswayNTPStatus
+}
+
+export interface ExpresswayClusterStatus {
+  status: HealthStatus
+  peer_count?: number
+  all_peers_active?: boolean
+  peers?: Array<{
+    address: string
+    status: 'active' | 'inactive' | 'unknown'
+  }>
+  message?: string
+}
+
+export interface ExpresswayLicensingStatus {
+  status: HealthStatus
+  license_valid?: boolean
+  days_remaining?: number
+  message?: string
+}
+
+export interface ExpresswayAlarmsStatus {
+  status: HealthStatus
+  alarm_count?: number
+  critical_count?: number
+  warning_count?: number
+  alarms?: Array<{
+    severity: 'critical' | 'warning' | 'info'
+    description: string
+  }>
+  message?: string
+}
+
+export interface ExpresswayNTPStatus {
+  status: HealthStatus
+  synchronized?: boolean
+  stratum?: number
+  message?: string
+}
+
+// Default checks for each device type
+export const defaultCUCMChecks: CUCMHealthCheck[] = ['services', 'ntp', 'diagnostics']
+export const defaultCUBEChecks: CUBEHealthCheck[] = ['system', 'interfaces', 'voice_calls', 'sip_status', 'ntp']
+export const defaultExpresswayChecks: ExpresswayHealthCheck[] = ['cluster', 'licensing', 'alarms', 'ntp']
