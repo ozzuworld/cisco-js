@@ -452,13 +452,12 @@ export default function LogCollection() {
       try {
         const status = await jobService.getJobStatus(jobId)
 
-        console.log(`[CUCM Poll ${jobId}] Response:`, JSON.stringify(status, null, 2))
-        console.log(`[CUCM Poll ${jobId}] status.status = "${status.status}"`)
+        console.log(`[CUCM Poll ${jobId}] status="${status.status}", download_available=${status.download_available}, percent=${status.percent_complete}`)
 
-        // Normalize status for comparison (handle various backend responses)
+        // Normalize status for comparison
         const jobStatus = status.status?.toLowerCase() || ''
 
-        if (jobStatus === 'running' || jobStatus === 'in_progress' || jobStatus === 'processing') {
+        if (jobStatus === 'queued' || jobStatus === 'running') {
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: {
@@ -468,21 +467,24 @@ export default function LogCollection() {
             },
           }))
           setTimeout(poll, 3000)
-        } else if (jobStatus === 'completed' || jobStatus === 'success' || jobStatus === 'done' || jobStatus === 'finished') {
-          console.log(`[CUCM Poll ${jobId}] Job completed!`)
+        } else if (jobStatus === 'succeeded' || jobStatus === 'partial') {
+          // Job completed (succeeded = all nodes, partial = some nodes)
+          // Use download_available from backend to determine if ready
+          const canDownload = status.download_available === true
+          console.log(`[CUCM Poll ${jobId}] Job ${jobStatus}! download_available=${canDownload}`)
           setDeviceProgress(prev => ({
             ...prev,
-            [deviceId]: { ...prev[deviceId], status: 'completed', progress: 100, downloadAvailable: true },
+            [deviceId]: { ...prev[deviceId], status: 'completed', progress: 100, downloadAvailable: canDownload },
           }))
           // useEffect will handle completion check
-        } else if (jobStatus === 'failed' || jobStatus === 'error' || jobStatus === 'cancelled') {
+        } else if (jobStatus === 'failed' || jobStatus === 'cancelled') {
           setDeviceProgress(prev => ({
             ...prev,
             [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
           }))
           // useEffect will handle completion check
         } else {
-          // Keep polling for pending/unknown status
+          // Keep polling for unknown status
           console.log(`[CUCM Poll ${jobId}] Unknown status "${jobStatus}", continuing to poll...`)
           setTimeout(poll, 3000)
         }

@@ -35,7 +35,7 @@ export interface NodeJobStatus {
 
 export interface JobStatusResponse {
   job_id: string
-  status: string
+  status: string  // queued, running, succeeded, partial, failed, cancelled
   created_at: string
   started_at?: string
   completed_at?: string
@@ -47,6 +47,7 @@ export interface JobStatusResponse {
   failed_nodes: number
   running_nodes: number
   percent_complete: number
+  download_available: boolean  // True when artifacts can be downloaded
 }
 
 export interface Artifact {
