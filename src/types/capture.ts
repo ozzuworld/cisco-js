@@ -4,7 +4,7 @@ export type CaptureStatus = 'pending' | 'running' | 'stopping' | 'completed' | '
 
 export type CaptureProtocol = 'ip' | 'arp' | 'rarp' | 'all'
 
-export type CaptureDeviceType = 'cucm' | 'csr1000v'
+export type CaptureDeviceType = 'cucm' | 'cube' | 'csr1000v' | 'expressway'
 
 // Filter for packet capture
 export interface CaptureFilter {

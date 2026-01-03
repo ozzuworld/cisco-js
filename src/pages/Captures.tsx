@@ -63,6 +63,7 @@ export default function Captures() {
   // Form state
   const [deviceType, setDeviceType] = useState<CaptureDeviceType>('cucm')
   const [host, setHost] = useState('')
+  const [port, setPort] = useState<number | ''>(22)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -73,8 +74,14 @@ export default function Captures() {
   const [filterPort, setFilterPort] = useState<number | ''>('')
   const [filterProtocol, setFilterProtocol] = useState<CaptureProtocol>('ip')
 
-  // Interface hints based on device type
-  const interfaceHint = deviceType === 'cucm' ? 'eth0' : 'GigabitEthernet1'
+  // Device type configuration
+  const deviceConfig = {
+    cucm: { defaultPort: 22, interfaceHint: 'eth0', interfaceRequired: true, credLabel: 'SSH' },
+    cube: { defaultPort: 22, interfaceHint: 'GigabitEthernet1', interfaceRequired: true, credLabel: 'SSH' },
+    csr1000v: { defaultPort: 22, interfaceHint: 'GigabitEthernet1', interfaceRequired: true, credLabel: 'SSH' },
+    expressway: { defaultPort: 443, interfaceHint: 'eth0', interfaceRequired: false, credLabel: 'Admin' },
+  }
+  const config = deviceConfig[deviceType]
 
   const handleStartCapture = async () => {
     if (!host || !username || !password) {
@@ -86,6 +93,7 @@ export default function Captures() {
       const request = {
         device_type: deviceType,
         host,
+        port: port || undefined,
         username,
         password,
         duration_sec: duration,
@@ -188,22 +196,40 @@ export default function Captures() {
                   value={deviceType}
                   label="Device Type"
                   onChange={e => {
-                    setDeviceType(e.target.value as CaptureDeviceType)
+                    const newType = e.target.value as CaptureDeviceType
+                    setDeviceType(newType)
                     setInterfaceName('') // Reset interface when device type changes
+                    setPort(deviceConfig[newType].defaultPort) // Set default port for device type
                   }}
                 >
                   <MenuItem value="cucm">CUCM / UC Servers</MenuItem>
-                  <MenuItem value="csr1000v">CUBE / IOS-XE Routers</MenuItem>
+                  <MenuItem value="cube">CUBE (IOS-XE Voice Gateway)</MenuItem>
+                  <MenuItem value="csr1000v">CSR1000V / ISR / ASR Routers</MenuItem>
+                  <MenuItem value="expressway">Expressway / VCS</MenuItem>
                 </Select>
               </FormControl>
-              <TextField
-                label="Target Host"
-                value={host}
-                onChange={e => setHost(e.target.value)}
-                placeholder="172.168.0.101 or cucm.example.com"
-                required
-                fullWidth
-              />
+              <Grid container spacing={2}>
+                <Grid item xs={8}>
+                  <TextField
+                    label="Target Host"
+                    value={host}
+                    onChange={e => setHost(e.target.value)}
+                    placeholder="172.168.0.101 or device.example.com"
+                    required
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    label="Port"
+                    type="number"
+                    value={port}
+                    onChange={e => setPort(e.target.value ? Number(e.target.value) : '')}
+                    placeholder={String(config.defaultPort)}
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
               <TextField
                 label="Username"
                 value={username}
@@ -228,14 +254,25 @@ export default function Captures() {
                   ),
                 }}
               />
-              <TextField
-                label="Interface"
-                value={interfaceName}
-                onChange={e => setInterfaceName(e.target.value)}
-                placeholder={interfaceHint}
-                helperText={`Default: ${interfaceHint}`}
-                fullWidth
-              />
+              {config.interfaceRequired ? (
+                <TextField
+                  label="Interface"
+                  value={interfaceName}
+                  onChange={e => setInterfaceName(e.target.value)}
+                  placeholder={config.interfaceHint}
+                  helperText={`Default: ${config.interfaceHint}`}
+                  fullWidth
+                />
+              ) : (
+                <TextField
+                  label="Interface (Optional)"
+                  value={interfaceName}
+                  onChange={e => setInterfaceName(e.target.value)}
+                  placeholder="All interfaces"
+                  helperText="Expressway captures all interfaces by default"
+                  fullWidth
+                />
+              )}
 
               <Box>
                 <Typography variant="body2" gutterBottom>
