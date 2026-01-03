@@ -33,7 +33,7 @@ interface ReviewStepProps {
 export function ReviewStep({ data, onSubmit, onBack, isLoading }: ReviewStepProps) {
   const { connection, discoveredNodes, selectedNodes, profile } = data
 
-  const selectedNodeObjects = discoveredNodes.filter(n => selectedNodes.includes(n.hostname))
+  const selectedNodeObjects = discoveredNodes.filter(n => selectedNodes.includes(n.ip))
 
   return (
     <Box>
@@ -93,8 +93,8 @@ export function ReviewStep({ data, onSubmit, onBack, isLoading }: ReviewStepProp
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
           {selectedNodeObjects.map(node => (
             <Chip
-              key={node.hostname}
-              label={`${node.hostname} (${node.role})`}
+              key={node.ip}
+              label={`${node.host} (${node.role})`}
               color="primary"
               variant="outlined"
               size="small"

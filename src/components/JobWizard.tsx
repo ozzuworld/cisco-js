@@ -82,10 +82,10 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
         ...prev,
         connection: data,
         discoveredNodes: result.nodes,
-        selectedNodes: result.nodes.map(n => n.hostname), // Select all by default
+        selectedNodes: result.nodes.map(n => n.ip), // Select all by default
       }))
       enqueueSnackbar(
-        `Successfully discovered ${result.totalNodes} nodes from ${result.publisher}`,
+        `Successfully discovered ${result.nodes.length} nodes`,
         { variant: 'success' }
       )
       handleNext()
@@ -119,14 +119,8 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
       return
     }
 
-    // Convert selected hostnames to IP addresses for backend
-    const nodeIps = wizardData.selectedNodes.map(hostname => {
-      const node = wizardData.discoveredNodes.find(n => n.hostname === hostname)
-      return node?.ipAddress || hostname // fallback to hostname if no IP found
-    })
-
-    console.log('Selected nodes (hostnames):', wizardData.selectedNodes)
-    console.log('Node IPs for backend:', nodeIps)
+    // selectedNodes already contains IP addresses
+    console.log('Selected node IPs:', wizardData.selectedNodes)
 
     try {
       const job = await createJobMutation.mutateAsync({
@@ -134,7 +128,7 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
         username: wizardData.connection.username,
         password: wizardData.connection.password,
         port: wizardData.connection.port || 22,
-        nodes: nodeIps,
+        nodes: wizardData.selectedNodes,
         profile: wizardData.profile.name,
       })
 

@@ -220,7 +220,7 @@ export default function LogCollection() {
           ? {
               ...d,
               discoveredNodes: response.nodes,
-              selectedNodes: response.nodes.map(n => n.hostname),
+              selectedNodes: response.nodes.map(n => n.ip),
             }
           : d
       ))
@@ -678,18 +678,18 @@ export default function LogCollection() {
                               ) : (
                                 <List dense>
                                   {device.discoveredNodes.map(node => (
-                                    <ListItem key={node.hostname} disablePadding>
+                                    <ListItem key={node.ip} disablePadding>
                                       <ListItemIcon sx={{ minWidth: 36 }}>
                                         <Checkbox
                                           edge="start"
-                                          checked={device.selectedNodes?.includes(node.hostname) || false}
-                                          onChange={() => handleToggleNode(device.id, node.hostname)}
+                                          checked={device.selectedNodes?.includes(node.ip) || false}
+                                          onChange={() => handleToggleNode(device.id, node.ip)}
                                           size="small"
                                         />
                                       </ListItemIcon>
                                       <ListItemText
-                                        primary={node.hostname}
-                                        secondary={`${node.ipAddress} - ${node.role}`}
+                                        primary={node.host}
+                                        secondary={`${node.ip} - ${node.role}`}
                                       />
                                     </ListItem>
                                   ))}

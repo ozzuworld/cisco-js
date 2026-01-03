@@ -1,18 +1,17 @@
 // API Response Types based on CUCM Backend
 
 export interface ClusterNode {
-  hostname: string
-  ipAddress: string
-  role: 'publisher' | 'subscriber' | 'tftp' | 'cups' | string
-  version?: string
-  status: 'online' | 'offline' | 'unknown'
+  ip: string
+  fqdn: string
+  host: string
+  role: string
+  product?: string
+  dbrole?: string
+  raw?: string
 }
 
 export interface DiscoverResponse {
-  publisher: string
   nodes: ClusterNode[]
-  totalNodes: number
-  discoveredAt: string
 }
 
 export interface LogProfile {
