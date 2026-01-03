@@ -4,38 +4,33 @@ import JSZip from 'jszip'
 import {
   Box,
   Typography,
-  Stepper,
-  Step,
-  StepLabel,
   Paper,
   Button,
   Grid,
   Card,
   CardContent,
+  CardActions,
   TextField,
   FormControl,
-  FormControlLabel,
-  RadioGroup,
-  Radio,
-  Checkbox,
   InputLabel,
   Select,
   MenuItem,
   IconButton,
   InputAdornment,
   CircularProgress,
-  Alert,
   Divider,
+  LinearProgress,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  ListItemSecondaryAction,
-  LinearProgress,
-  Chip,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+  Checkbox,
+  Collapse,
 } from '@mui/material'
 import {
   Phone as CucmIcon,
@@ -44,15 +39,18 @@ import {
   Visibility,
   VisibilityOff,
   ArrowBack,
-  ArrowForward,
   CheckCircle,
   Error as ErrorIcon,
-  Pending as PendingIcon,
+  HelpOutline,
   Download,
   Add,
   Delete,
+  PlayArrow,
   ExpandMore,
-  Dns,
+  ExpandLess,
+  FolderOpen,
+  Close,
+  ContentCopy,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { logService, jobService } from '@/services'
@@ -60,12 +58,10 @@ import type {
   ClusterNode,
   LogProfile,
   LogDeviceType,
-  LogCollectionStatus,
   DeviceProfile,
 } from '@/types'
 
 type DeviceType = 'cucm' | 'cube' | 'expressway'
-type WizardStep = 'devices' | 'options' | 'progress'
 
 interface DeviceEntry {
   id: string
@@ -77,34 +73,35 @@ interface DeviceEntry {
   // CUCM-specific
   discoveredNodes?: ClusterNode[]
   selectedNodes?: string[]
-  jobId?: string  // Track CUCM job ID
   // CUBE/Expressway-specific
-  profile?: string           // Selected profile name
-  includeDebug?: boolean     // Legacy - now use profile
-  debugDuration?: number     // For debug profiles
-  collectionId?: string      // Track CUBE/Expressway collection ID
+  profile?: string
 }
 
-const steps = ['Add Devices', 'Collection Options', 'Collect']
+interface DeviceProgress {
+  status: 'pending' | 'discovering' | 'running' | 'completed' | 'failed'
+  progress: number
+  message?: string
+  downloadAvailable?: boolean
+  collectionId?: string
+  jobId?: string
+}
 
-const deviceTypeConfig = {
-  cucm: { label: 'CUCM Cluster', icon: <CucmIcon />, defaultPort: 22, color: '#1976d2' },
-  cube: { label: 'CUBE', icon: <CubeIcon />, defaultPort: 22, color: '#ed6c02' },
-  expressway: { label: 'Expressway', icon: <ExpresswayIcon />, defaultPort: 443, color: '#9c27b0' },
+const deviceTypeConfig: Record<DeviceType, { label: string; icon: React.ReactElement; color: string; defaultPort: number }> = {
+  cucm: { label: 'CUCM', icon: <CucmIcon />, color: '#1976d2', defaultPort: 22 },
+  cube: { label: 'CUBE', icon: <CubeIcon />, color: '#ed6c02', defaultPort: 22 },
+  expressway: { label: 'Expressway', icon: <ExpresswayIcon />, color: '#9c27b0', defaultPort: 443 },
 }
 
 export default function LogCollection() {
   const navigate = useNavigate()
   const { enqueueSnackbar } = useSnackbar()
 
-  // Wizard state
-  const [currentStep, setCurrentStep] = useState<WizardStep>('devices')
-
   // Device list
   const [devices, setDevices] = useState<DeviceEntry[]>([])
-  const [expandedDevice, setExpandedDevice] = useState<string | null>(null)
+  const [deviceProgress, setDeviceProgress] = useState<Record<string, DeviceProgress>>({})
 
-  // Add device form
+  // Add device dialog
+  const [showAddDevice, setShowAddDevice] = useState(false)
   const [newDeviceType, setNewDeviceType] = useState<DeviceType>('cucm')
   const [newHost, setNewHost] = useState('')
   const [newPort, setNewPort] = useState<number>(22)
@@ -112,115 +109,69 @@ export default function LogCollection() {
   const [newPassword, setNewPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
-  // CUCM discovery state
-  const [isDiscovering, setIsDiscovering] = useState<string | null>(null)
-
-  // Collection options - CUCM
-  const [collectionType, setCollectionType] = useState<'regular' | 'profile'>('regular')
-  const [profiles, setProfiles] = useState<LogProfile[]>([])
-  const [selectedProfile, setSelectedProfile] = useState('')
-  const [timeRangeType, setTimeRangeType] = useState<'relative' | 'absolute'>('relative')
-  const [relativeMinutes, setRelativeMinutes] = useState(60)
-
-  // Collection options - CUBE/Expressway
-  const [cubeProfiles, setCubeProfiles] = useState<DeviceProfile[]>([])
-  const [expresswayProfiles, setExpresswayProfiles] = useState<DeviceProfile[]>([])
-  const [selectedCubeProfile, setSelectedCubeProfile] = useState('')
-  const [selectedExpresswayProfile, setSelectedExpresswayProfile] = useState('')
-  const [debugDuration, setDebugDuration] = useState(30)
+  // CUCM node selection dialog
+  const [nodeSelectionDevice, setNodeSelectionDevice] = useState<DeviceEntry | null>(null)
 
   // Collection state
-  const [collectionStatus, setCollectionStatus] = useState<LogCollectionStatus | null>(null)
-  const [collectionError, setCollectionError] = useState<string | null>(null)
-  const [deviceProgress, setDeviceProgress] = useState<Record<string, {
-    status: string
-    progress: number
-    downloadAvailable?: boolean
-    collectionId?: string  // For CUBE/Expressway
-    jobId?: string         // For CUCM
-  }>>({})
+  const [isCollecting, setIsCollecting] = useState(false)
+  const [collectionComplete, setCollectionComplete] = useState(false)
 
-  // Bundle download state
+  // Profiles for CUBE/Expressway
+  const [cubeProfiles, setCubeProfiles] = useState<DeviceProfile[]>([])
+  const [expresswayProfiles, setExpresswayProfiles] = useState<DeviceProfile[]>([])
+  const [selectedCubeProfile, setSelectedCubeProfile] = useState('voip_trace')
+  const [selectedExpresswayProfile, setSelectedExpresswayProfile] = useState('diagnostic_logs')
+
+  // CUCM profiles
+  const [cucmProfiles, setCucmProfiles] = useState<LogProfile[]>([])
+  const [selectedCucmProfile, setSelectedCucmProfile] = useState('callmanager_full')
+
+  // Detail modal
+  const [selectedDevice, setSelectedDevice] = useState<DeviceEntry | null>(null)
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+
+  // Bundle state
   const [isBundling, setIsBundling] = useState(false)
   const [bundleProgress, setBundleProgress] = useState(0)
 
-  // Fallback profiles if API is unavailable
+  // Fallback profiles
   const fallbackCubeProfiles: DeviceProfile[] = [
-    { name: 'voip_trace', description: 'VoIP Trace logs - SIP signaling (recommended)', device_type: 'cube', method: 'voip_trace', include_debug: false },
-    { name: 'voip_trace_detail', description: 'Detailed VoIP Trace with internal events', device_type: 'cube', method: 'voip_trace', include_debug: false },
+    { name: 'voip_trace', description: 'VoIP Trace logs - SIP signaling', device_type: 'cube', method: 'voip_trace', include_debug: false },
     { name: 'sip_debug', description: 'SIP debug messages (CPU intensive)', device_type: 'cube', method: 'debug', include_debug: true, duration_sec: 30 },
-    { name: 'voice_debug_full', description: 'Full voice debugging (CPU intensive)', device_type: 'cube', method: 'debug', include_debug: true, duration_sec: 30 },
-    { name: 'config_dump', description: 'Configuration and status snapshot', device_type: 'cube', method: 'config', include_debug: false },
+    { name: 'config_dump', description: 'Configuration snapshot', device_type: 'cube', method: 'config', include_debug: false },
   ]
 
   const fallbackExpresswayProfiles: DeviceProfile[] = [
-    { name: 'diagnostic_full', description: 'Full diagnostic logs with packet capture', device_type: 'expressway', method: 'diagnostic', tcpdump: true },
-    { name: 'diagnostic_logs', description: 'Diagnostic logs only (faster)', device_type: 'expressway', method: 'diagnostic', tcpdump: false },
-    { name: 'event_log', description: 'Event log snapshot (quick status)', device_type: 'expressway', method: 'event_log', tcpdump: false },
+    { name: 'diagnostic_full', description: 'Full diagnostic with packet capture', device_type: 'expressway', method: 'diagnostic', tcpdump: true },
+    { name: 'diagnostic_logs', description: 'Diagnostic logs only', device_type: 'expressway', method: 'diagnostic', tcpdump: false },
+    { name: 'event_log', description: 'Event log snapshot', device_type: 'expressway', method: 'event_log', tcpdump: false },
   ]
 
-  // Fetch device profiles on mount
+  // Fetch profiles on mount
   useEffect(() => {
-    const fetchDeviceProfiles = async () => {
+    const fetchProfiles = async () => {
       try {
         const response = await logService.getDeviceProfiles()
-        const cubeProfs = response.cube_profiles?.length > 0 ? response.cube_profiles : fallbackCubeProfiles
-        const expProfs = response.expressway_profiles?.length > 0 ? response.expressway_profiles : fallbackExpresswayProfiles
-        setCubeProfiles(cubeProfs)
-        setExpresswayProfiles(expProfs)
-        // Set default selections to first profile
-        setSelectedCubeProfile(cubeProfs[0].name)
-        setSelectedExpresswayProfile(expProfs[0].name)
-      } catch (error) {
-        console.error('Failed to fetch device profiles:', error)
-        // Use fallback profiles if API fails
+        setCubeProfiles(response.cube_profiles?.length > 0 ? response.cube_profiles : fallbackCubeProfiles)
+        setExpresswayProfiles(response.expressway_profiles?.length > 0 ? response.expressway_profiles : fallbackExpresswayProfiles)
+      } catch {
         setCubeProfiles(fallbackCubeProfiles)
         setExpresswayProfiles(fallbackExpresswayProfiles)
-        setSelectedCubeProfile(fallbackCubeProfiles[0].name)
-        setSelectedExpresswayProfile(fallbackExpresswayProfiles[0].name)
+      }
+
+      try {
+        const profilesResponse = await logService.getProfiles()
+        setCucmProfiles(profilesResponse.profiles)
+      } catch {
+        // CUCM profiles are optional
       }
     }
-    fetchDeviceProfiles()
+    fetchProfiles()
   }, [])
 
-  const getActiveStep = () => {
-    switch (currentStep) {
-      case 'devices': return 0
-      case 'options': return 1
-      case 'progress': return 2
-      default: return 0
-    }
-  }
-
-  // Check if all CUCM devices have completed discovery and have nodes selected
-  const areCucmDevicesReady = () => {
-    const cucmDevices = devices.filter(d => d.type === 'cucm')
-    if (cucmDevices.length === 0) return true // No CUCM devices, OK to proceed
-
-    return cucmDevices.every(d =>
-      d.discoveredNodes &&
-      d.discoveredNodes.length > 0 &&
-      d.selectedNodes &&
-      d.selectedNodes.length > 0
-    )
-  }
-
-  // Check if any CUCM device is still discovering
-  const isAnyDiscovering = () => {
-    return isDiscovering !== null
-  }
-
-  // Get reason why we can't proceed (for tooltip/message)
-  const getBlockingReason = () => {
-    if (devices.length === 0) return 'Add at least one device'
-    if (isAnyDiscovering()) return 'Discovery in progress...'
-
-    const cucmDevices = devices.filter(d => d.type === 'cucm')
-    for (const d of cucmDevices) {
-      if (!d.discoveredNodes) return `Discover nodes for ${d.host || 'CUCM'}`
-      if (!d.selectedNodes || d.selectedNodes.length === 0) return `Select nodes for ${d.host || 'CUCM'}`
-    }
-    return null
+  const handleDeviceTypeChange = (type: DeviceType) => {
+    setNewDeviceType(type)
+    setNewPort(deviceTypeConfig[type].defaultPort)
   }
 
   const handleAddDevice = () => {
@@ -233,22 +184,16 @@ export default function LogCollection() {
       id: `${newDeviceType}-${Date.now()}`,
       type: newDeviceType,
       host: newHost,
-      port: newPort || deviceTypeConfig[newDeviceType].defaultPort,
+      port: newPort,
       username: newUsername,
       password: newPassword,
-      includeDebug: false,
-      debugDuration: 30,
     }
 
     setDevices([...devices, newDevice])
-    setExpandedDevice(newDevice.id)
-
-    // Clear form
     setNewHost('')
     setNewUsername('')
     setNewPassword('')
-    setNewPort(deviceTypeConfig[newDeviceType].defaultPort)
-
+    setShowAddDevice(false)
     enqueueSnackbar(`Added ${deviceTypeConfig[newDeviceType].label}: ${newHost}`, { variant: 'success' })
 
     // Auto-discover for CUCM
@@ -259,13 +204,19 @@ export default function LogCollection() {
 
   const handleRemoveDevice = (id: string) => {
     setDevices(devices.filter(d => d.id !== id))
-    if (expandedDevice === id) {
-      setExpandedDevice(null)
-    }
+    setDeviceProgress(prev => {
+      const updated = { ...prev }
+      delete updated[id]
+      return updated
+    })
   }
 
   const handleDiscoverNodes = async (device: DeviceEntry) => {
-    setIsDiscovering(device.id)
+    setDeviceProgress(prev => ({
+      ...prev,
+      [device.id]: { status: 'discovering', progress: 0, message: 'Discovering cluster nodes...' }
+    }))
+
     try {
       const response = await logService.discoverNodes({
         publisher_host: device.host,
@@ -276,135 +227,89 @@ export default function LogCollection() {
 
       setDevices(prev => prev.map(d =>
         d.id === device.id
-          ? {
-              ...d,
-              discoveredNodes: response.nodes,
-              selectedNodes: response.nodes.map(n => n.ip),
-            }
+          ? { ...d, discoveredNodes: response.nodes, selectedNodes: response.nodes.map(n => n.ip) }
           : d
       ))
 
-      // Fetch profiles if not already loaded
-      if (profiles.length === 0) {
-        try {
-          const profilesResponse = await logService.getProfiles()
-          setProfiles(profilesResponse.profiles)
-        } catch {
-          // Profiles are optional
-        }
-      }
+      setDeviceProgress(prev => ({
+        ...prev,
+        [device.id]: { status: 'pending', progress: 0, message: `${response.nodes.length} nodes discovered` }
+      }))
 
-      enqueueSnackbar(`Discovered ${response.nodes.length} nodes in cluster`, { variant: 'success' })
+      enqueueSnackbar(`Discovered ${response.nodes.length} nodes`, { variant: 'success' })
     } catch (error) {
-      enqueueSnackbar(
-        error instanceof Error ? error.message : 'Failed to discover nodes',
-        { variant: 'error' }
-      )
-    } finally {
-      setIsDiscovering(null)
+      setDeviceProgress(prev => ({
+        ...prev,
+        [device.id]: { status: 'failed', progress: 0, message: error instanceof Error ? error.message : 'Discovery failed' }
+      }))
+      enqueueSnackbar('Failed to discover nodes', { variant: 'error' })
     }
   }
 
-  const handleToggleNode = (deviceId: string, hostname: string) => {
+  const handleToggleNode = (deviceId: string, nodeIp: string) => {
     setDevices(prev => prev.map(d =>
       d.id === deviceId
         ? {
             ...d,
-            selectedNodes: d.selectedNodes?.includes(hostname)
-              ? d.selectedNodes.filter(h => h !== hostname)
-              : [...(d.selectedNodes || []), hostname],
+            selectedNodes: d.selectedNodes?.includes(nodeIp)
+              ? d.selectedNodes.filter(ip => ip !== nodeIp)
+              : [...(d.selectedNodes || []), nodeIp]
           }
         : d
     ))
   }
 
-  const handleUpdateDevice = (deviceId: string, updates: Partial<DeviceEntry>) => {
-    setDevices(prev => prev.map(d =>
-      d.id === deviceId ? { ...d, ...updates } : d
-    ))
+  const canStartCollection = () => {
+    if (devices.length === 0) return false
+
+    // Check CUCM devices have discovered and selected nodes
+    const cucmDevices = devices.filter(d => d.type === 'cucm')
+    for (const d of cucmDevices) {
+      if (!d.discoveredNodes || d.discoveredNodes.length === 0) return false
+      if (!d.selectedNodes || d.selectedNodes.length === 0) return false
+    }
+
+    // Check no devices are still discovering
+    const isDiscovering = Object.values(deviceProgress).some(p => p.status === 'discovering')
+    if (isDiscovering) return false
+
+    return true
   }
 
   const handleStartCollection = async () => {
-    if (devices.length === 0) {
-      enqueueSnackbar('Please add at least one device', { variant: 'warning' })
-      return
-    }
+    if (!canStartCollection()) return
 
-    // Validate CUCM devices have discovered and selected nodes
-    const cucmDevices = devices.filter(d => d.type === 'cucm')
-    for (const device of cucmDevices) {
-      if (!device.discoveredNodes || device.discoveredNodes.length === 0) {
-        enqueueSnackbar(`Please discover nodes for CUCM cluster ${device.host} first`, { variant: 'warning' })
-        return
-      }
-      if (!device.selectedNodes || device.selectedNodes.length === 0) {
-        enqueueSnackbar(`Please select at least one node for ${device.host}`, { variant: 'warning' })
-        return
-      }
-    }
+    setIsCollecting(true)
+    setCollectionComplete(false)
 
-    setCurrentStep('progress')
-    setCollectionError(null)
-
-    // Initialize progress for each device
-    const initialProgress: Record<string, { status: string; progress: number }> = {}
+    // Initialize progress
+    const initialProgress: Record<string, DeviceProgress> = {}
     devices.forEach(d => {
-      initialProgress[d.id] = { status: 'pending', progress: 0 }
+      initialProgress[d.id] = { status: 'running', progress: 5, message: 'Starting collection...' }
     })
     setDeviceProgress(initialProgress)
 
-    // Start collections for all devices
-    try {
-      // Start CUCM jobs
-      for (const device of cucmDevices) {
-        setDeviceProgress(prev => ({
-          ...prev,
-          [device.id]: { status: 'running', progress: 5 },
-        }))
-
-        try {
+    // Start collections
+    for (const device of devices) {
+      try {
+        if (device.type === 'cucm') {
           const job = await jobService.createJob({
             publisher_host: device.host,
             username: device.username,
             password: device.password,
-            port: device.port || 22,
+            port: device.port,
             nodes: device.selectedNodes || [],
-            profile: selectedProfile || 'callmanager_full',
+            profile: selectedCucmProfile,
           })
 
-          // Store job ID in progress state for reliable download access
           setDeviceProgress(prev => ({
             ...prev,
-            [device.id]: { ...prev[device.id], jobId: job.id },
+            [device.id]: { ...prev[device.id], jobId: job.id }
           }))
 
-          // Start polling for CUCM job
-          pollCucmJobStatus(device.id, job.id)
-        } catch (error) {
-          setDeviceProgress(prev => ({
-            ...prev,
-            [device.id]: { status: 'failed', progress: 0 },
-          }))
-          enqueueSnackbar(
-            `Failed to start collection for ${device.host}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            { variant: 'error' }
-          )
-        }
-      }
-
-      // Start CUBE/Expressway collections
-      for (const device of devices.filter(d => d.type === 'cube' || d.type === 'expressway')) {
-        setDeviceProgress(prev => ({
-          ...prev,
-          [device.id]: { status: 'running', progress: 10 },
-        }))
-
-        try {
-          // Determine profile based on device type
+          pollCucmJob(device.id, job.id)
+        } else {
           const profileName = device.type === 'cube' ? selectedCubeProfile : selectedExpresswayProfile
-          const profiles = device.type === 'cube' ? cubeProfiles : expresswayProfiles
-          const profileInfo = profiles.find(p => p.name === profileName)
-          const isDebugProfile = profileInfo?.include_debug || profileName.includes('debug')
 
           const response = await logService.startCollection({
             device_type: device.type as LogDeviceType,
@@ -413,48 +318,28 @@ export default function LogCollection() {
             username: device.username,
             password: device.password,
             profile: profileName,
-            duration_sec: isDebugProfile ? debugDuration : undefined,
           })
 
-          console.log(`[${device.type}] Started collection:`, response.collection_id)
-
-          // Store collection ID in progress state for reliable download access
           setDeviceProgress(prev => ({
             ...prev,
-            [device.id]: { ...prev[device.id], collectionId: response.collection_id },
+            [device.id]: { ...prev[device.id], collectionId: response.collection_id }
           }))
 
-          setCollectionStatus(response.status)
-
-          // Start polling for this device
-          pollDeviceStatus(device.id, response.collection_id)
-        } catch (error) {
-          setDeviceProgress(prev => ({
-            ...prev,
-            [device.id]: { status: 'failed', progress: 0 },
-          }))
-          enqueueSnackbar(
-            `Failed to start collection for ${device.host}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            { variant: 'error' }
-          )
+          pollDeviceCollection(device.id, response.collection_id)
         }
+      } catch (error) {
+        setDeviceProgress(prev => ({
+          ...prev,
+          [device.id]: { status: 'failed', progress: 0, message: error instanceof Error ? error.message : 'Failed to start' }
+        }))
       }
-
-      enqueueSnackbar('Collection started on all devices', { variant: 'success' })
-    } catch (error) {
-      setCollectionError(error instanceof Error ? error.message : 'Failed to start collection')
     }
   }
 
-  // Poll CUCM job status
-  const pollCucmJobStatus = async (deviceId: string, jobId: string) => {
+  const pollCucmJob = async (deviceId: string, jobId: string) => {
     const poll = async () => {
       try {
         const status = await jobService.getJobStatus(jobId)
-
-        console.log(`[CUCM Poll ${jobId}] status="${status.status}", download_available=${status.download_available}, percent=${status.percent_complete}`)
-
-        // Normalize status for comparison
         const jobStatus = status.status?.toLowerCase() || ''
 
         if (jobStatus === 'queued' || jobStatus === 'running') {
@@ -463,53 +348,44 @@ export default function LogCollection() {
             [deviceId]: {
               ...prev[deviceId],
               status: 'running',
-              progress: status.percent_complete || Math.min((prev[deviceId]?.progress || 0) + 5, 90),
-            },
+              progress: Math.min(status.percent_complete || (prev[deviceId]?.progress || 0) + 5, 90),
+              message: 'Collecting logs...'
+            }
           }))
           setTimeout(poll, 3000)
         } else if (jobStatus === 'succeeded' || jobStatus === 'partial') {
-          // Job completed (succeeded = all nodes, partial = some nodes)
-          // Use download_available from backend to determine if ready
-          const canDownload = status.download_available === true
-          console.log(`[CUCM Poll ${jobId}] Job ${jobStatus}! download_available=${canDownload}`)
           setDeviceProgress(prev => ({
             ...prev,
-            [deviceId]: { ...prev[deviceId], status: 'completed', progress: 100, downloadAvailable: canDownload },
+            [deviceId]: {
+              ...prev[deviceId],
+              status: 'completed',
+              progress: 100,
+              downloadAvailable: status.download_available === true,
+              message: 'Collection complete'
+            }
           }))
-          // useEffect will handle completion check
-        } else if (jobStatus === 'failed' || jobStatus === 'cancelled') {
-          setDeviceProgress(prev => ({
-            ...prev,
-            [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
-          }))
-          // useEffect will handle completion check
         } else {
-          // Keep polling for unknown status
-          console.log(`[CUCM Poll ${jobId}] Unknown status "${jobStatus}", continuing to poll...`)
-          setTimeout(poll, 3000)
+          setDeviceProgress(prev => ({
+            ...prev,
+            [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, message: 'Collection failed' }
+          }))
         }
       } catch {
         setDeviceProgress(prev => ({
           ...prev,
-          [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
+          [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, message: 'Connection error' }
         }))
-        // useEffect will handle completion check
       }
     }
-
     poll()
   }
 
-  // Poll CUBE/Expressway collection status
-  const pollDeviceStatus = async (deviceId: string, collectionIdParam: string) => {
+  const pollDeviceCollection = async (deviceId: string, collectionId: string) => {
     const poll = async () => {
       try {
-        const response = await logService.getCollectionStatus(collectionIdParam)
+        const response = await logService.getCollectionStatus(collectionId)
         const status = response.collection?.status || 'pending'
-        // Backend returns download_available inside collection object
         const downloadAvailable = response.collection?.download_available || response.download_available || false
-
-        console.log(`[Poll ${collectionIdParam}] status=${status}, downloadAvailable=${downloadAvailable}`)
 
         if (status === 'running' || status === 'pending') {
           setDeviceProgress(prev => ({
@@ -518,150 +394,82 @@ export default function LogCollection() {
               ...prev[deviceId],
               status: 'running',
               progress: Math.min((prev[deviceId]?.progress || 0) + 10, 90),
-              downloadAvailable: false,
-            },
+              message: 'Collecting logs...'
+            }
           }))
           setTimeout(poll, 3000)
         } else if (status === 'completed') {
-          // Only mark as fully complete when download is available
           if (downloadAvailable) {
-            console.log(`[Poll ${collectionIdParam}] Collection complete, download available`)
             setDeviceProgress(prev => ({
               ...prev,
-              [deviceId]: { ...prev[deviceId], status: 'completed', progress: 100, downloadAvailable: true },
+              [deviceId]: {
+                ...prev[deviceId],
+                status: 'completed',
+                progress: 100,
+                downloadAvailable: true,
+                message: 'Collection complete'
+              }
             }))
-            // useEffect will handle completion check
           } else {
-            // Status is completed but download not yet ready, keep polling
-            setDeviceProgress(prev => ({
-              ...prev,
-              [deviceId]: { ...prev[deviceId], status: 'completed', progress: 95, downloadAvailable: false },
-            }))
             setTimeout(poll, 2000)
           }
-        } else if (status === 'failed' || status === 'cancelled') {
+        } else {
           setDeviceProgress(prev => ({
             ...prev,
-            [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
+            [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, message: 'Collection failed' }
           }))
-          // useEffect will handle completion check
         }
       } catch {
         setDeviceProgress(prev => ({
           ...prev,
-          [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, downloadAvailable: false },
+          [deviceId]: { ...prev[deviceId], status: 'failed', progress: 0, message: 'Connection error' }
         }))
-        // useEffect will handle completion check
       }
     }
-
     poll()
   }
 
-  // Watch deviceProgress and check for completion when all devices are done
+  // Check for collection complete
   useEffect(() => {
+    if (!isCollecting) return
+
     const progressValues = Object.values(deviceProgress)
-    if (progressValues.length === 0) return
-    if (progressValues.length !== devices.length) return // Wait for all devices to have progress
+    if (progressValues.length !== devices.length) return
 
-    const allDone = progressValues.every(
-      p => (p.status === 'completed' && p.downloadAvailable) || p.status === 'failed'
-    )
-
-    if (allDone && collectionStatus !== 'completed' && collectionStatus !== 'failed') {
-      const allSuccess = progressValues.every(p => p.status === 'completed' && p.downloadAvailable)
-      if (allSuccess) {
-        setCollectionStatus('completed')
-        enqueueSnackbar('All collections complete! Downloads ready.', { variant: 'success' })
-      } else {
-        setCollectionStatus('failed')
-      }
+    const allDone = progressValues.every(p => p.status === 'completed' || p.status === 'failed')
+    if (allDone) {
+      setIsCollecting(false)
+      setCollectionComplete(true)
+      const successCount = progressValues.filter(p => p.status === 'completed').length
+      enqueueSnackbar(`Collection complete: ${successCount}/${devices.length} devices`, { variant: 'success' })
     }
-  }, [deviceProgress, devices.length, collectionStatus, enqueueSnackbar])
+  }, [deviceProgress, devices.length, isCollecting, enqueueSnackbar])
 
-  // Download logs for a single device
   const handleDownloadDevice = (device: DeviceEntry) => {
     const progress = deviceProgress[device.id]
+    if (!progress?.downloadAvailable) return
 
-    if (!progress?.downloadAvailable) {
-      enqueueSnackbar('Download not available yet', { variant: 'warning' })
-      return
+    if (device.type === 'cucm' && progress.jobId) {
+      jobService.downloadAllArtifacts(progress.jobId)
+    } else if (progress.collectionId) {
+      logService.downloadCollection(progress.collectionId, `logs_${device.type}_${device.host}.tar.gz`)
     }
-
-    if (device.type === 'cucm') {
-      // Use jobId from progress state
-      const jobId = progress.jobId
-      if (jobId) {
-        console.log(`[Download] CUCM job ${jobId}`)
-        jobService.downloadAllArtifacts(jobId)
-        enqueueSnackbar(`Downloading logs from ${device.host}...`, { variant: 'info' })
-      } else {
-        enqueueSnackbar('Job ID not found', { variant: 'error' })
-      }
-    } else {
-      // CUBE/Expressway - use collectionId from progress state
-      const collectionId = progress.collectionId
-      if (collectionId) {
-        console.log(`[Download] ${device.type} collection ${collectionId}`)
-        logService.downloadCollection(collectionId, `logs_${device.type}_${device.host}.tar.gz`)
-        enqueueSnackbar(`Downloading logs from ${device.host}...`, { variant: 'info' })
-      } else {
-        enqueueSnackbar('Collection ID not found', { variant: 'error' })
-      }
-    }
+    enqueueSnackbar(`Downloading logs from ${device.host}...`, { variant: 'info' })
   }
 
-  // Download all completed logs with staggered timing to avoid browser blocking
-  const handleDownloadAll = () => {
-    const downloadableDevices = devices.filter(device => {
-      const progress = deviceProgress[device.id]
-      return progress?.status === 'completed' && progress?.downloadAvailable
-    })
-
-    if (downloadableDevices.length === 0) {
-      enqueueSnackbar('No downloads available yet', { variant: 'warning' })
-      return
-    }
-
-    enqueueSnackbar(`Starting ${downloadableDevices.length} download(s)...`, { variant: 'success' })
-
-    // Stagger downloads with 500ms delay to prevent browser from blocking
-    downloadableDevices.forEach((device, index) => {
-      setTimeout(() => {
-        const progress = deviceProgress[device.id]
-        if (device.type === 'cucm' && progress?.jobId) {
-          console.log(`[Download All] CUCM job ${progress.jobId} (${index + 1}/${downloadableDevices.length})`)
-          jobService.downloadAllArtifacts(progress.jobId)
-        } else if ((device.type === 'cube' || device.type === 'expressway') && progress?.collectionId) {
-          console.log(`[Download All] ${device.type} collection ${progress.collectionId} (${index + 1}/${downloadableDevices.length})`)
-          logService.downloadCollection(progress.collectionId, `logs_${device.type}_${device.host}.tar.gz`)
-        }
-      }, index * 500) // 500ms delay between each download
-    })
-  }
-
-  // Download all logs as a single bundled ZIP file
   const handleDownloadBundle = async () => {
-    const downloadableDevices = devices.filter(device => {
-      const progress = deviceProgress[device.id]
-      return progress?.status === 'completed' && progress?.downloadAvailable
-    })
-
-    if (downloadableDevices.length === 0) {
-      enqueueSnackbar('No downloads available yet', { variant: 'warning' })
-      return
-    }
+    const downloadable = devices.filter(d => deviceProgress[d.id]?.downloadAvailable)
+    if (downloadable.length === 0) return
 
     setIsBundling(true)
     setBundleProgress(0)
-    enqueueSnackbar(`Bundling ${downloadableDevices.length} log file(s)...`, { variant: 'info' })
 
     try {
       const zip = new JSZip()
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
 
-      for (let i = 0; i < downloadableDevices.length; i++) {
-        const device = downloadableDevices[i]
+      for (let i = 0; i < downloadable.length; i++) {
+        const device = downloadable[i]
         const progress = deviceProgress[device.id]
 
         try {
@@ -669,11 +477,9 @@ export default function LogCollection() {
           let filename: string
 
           if (device.type === 'cucm' && progress?.jobId) {
-            console.log(`[Bundle] Fetching CUCM job ${progress.jobId}`)
             blob = await jobService.fetchArtifactsBlob(progress.jobId)
             filename = `cucm_${device.host.replace(/\./g, '_')}.zip`
-          } else if ((device.type === 'cube' || device.type === 'expressway') && progress?.collectionId) {
-            console.log(`[Bundle] Fetching ${device.type} collection ${progress.collectionId}`)
+          } else if (progress?.collectionId) {
             blob = await logService.fetchCollectionBlob(progress.collectionId)
             filename = `${device.type}_${device.host.replace(/\./g, '_')}.tar.gz`
           } else {
@@ -681,30 +487,22 @@ export default function LogCollection() {
           }
 
           zip.file(filename, blob)
-          setBundleProgress(Math.round(((i + 1) / downloadableDevices.length) * 100))
+          setBundleProgress(Math.round(((i + 1) / downloadable.length) * 100))
         } catch (error) {
-          console.error(`Failed to fetch logs from ${device.host}:`, error)
-          enqueueSnackbar(`Failed to fetch logs from ${device.host}`, { variant: 'error' })
+          console.error(`Failed to fetch ${device.host}:`, error)
         }
       }
 
-      // Generate the bundled ZIP
       const bundleBlob = await zip.generateAsync({ type: 'blob' })
-      const bundleFilename = `log_collection_${timestamp}.zip`
-
-      // Trigger download
       const url = URL.createObjectURL(bundleBlob)
       const link = document.createElement('a')
       link.href = url
-      link.download = bundleFilename
-      document.body.appendChild(link)
+      link.download = `log_collection_${timestamp}.zip`
       link.click()
-      document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
       enqueueSnackbar('Bundle download complete!', { variant: 'success' })
     } catch (error) {
-      console.error('Bundle creation failed:', error)
       enqueueSnackbar('Failed to create bundle', { variant: 'error' })
     } finally {
       setIsBundling(false)
@@ -712,753 +510,587 @@ export default function LogCollection() {
     }
   }
 
-  const handleNewCollection = () => {
-    setCurrentStep('devices')
-    setDevices([])
-    setCollectionStatus(null)
-    setCollectionError(null)
-    setDeviceProgress({})
+  const getStatusIcon = (status: DeviceProgress['status'], size: number = 24) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle sx={{ fontSize: size }} color="success" />
+      case 'failed':
+        return <ErrorIcon sx={{ fontSize: size }} color="error" />
+      case 'running':
+      case 'discovering':
+        return <CircularProgress size={size} />
+      default:
+        return <HelpOutline sx={{ fontSize: size }} color="disabled" />
+    }
   }
 
-  const getTotalProgress = () => {
-    const progressValues = Object.values(deviceProgress)
-    if (progressValues.length === 0) return 0
-    return Math.round(progressValues.reduce((sum, p) => sum + p.progress, 0) / progressValues.length)
+  const getStatusColor = (status: DeviceProgress['status']) => {
+    switch (status) {
+      case 'completed': return '#22c55e'
+      case 'failed': return '#ef4444'
+      case 'running':
+      case 'discovering': return '#3b82f6'
+      default: return '#6b7280'
+    }
   }
 
-  // Render device list step
-  const renderDevicesStep = () => (
+  const copyToClipboard = async (data: unknown, label: string) => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(data, null, 2))
+      enqueueSnackbar(`${label} copied to clipboard`, { variant: 'success' })
+    } catch {
+      enqueueSnackbar('Failed to copy', { variant: 'error' })
+    }
+  }
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))
+  }
+
+  const getDownloadableCount = () => {
+    return devices.filter(d => deviceProgress[d.id]?.downloadAvailable).length
+  }
+
+  return (
     <Box>
-      <Typography variant="h5" gutterBottom>
-        Add Devices to Collect
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Add all devices you want to collect logs from. Logs will be collected simultaneously.
-      </Typography>
-
-      <Grid container spacing={3}>
-        {/* Add Device Form */}
-        <Grid item xs={12} md={5}>
-          <Card variant="outlined">
-            <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Add /> Add Device
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Device Type</InputLabel>
-                  <Select
-                    value={newDeviceType}
-                    label="Device Type"
-                    onChange={e => {
-                      const type = e.target.value as DeviceType
-                      setNewDeviceType(type)
-                      setNewPort(deviceTypeConfig[type].defaultPort)
-                    }}
-                  >
-                    <MenuItem value="cucm">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CucmIcon fontSize="small" /> CUCM Cluster
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="cube">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <CubeIcon fontSize="small" /> CUBE
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="expressway">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ExpresswayIcon fontSize="small" /> Expressway
-                      </Box>
-                    </MenuItem>
-                  </Select>
-                </FormControl>
-
-                <Grid container spacing={1}>
-                  <Grid item xs={8}>
-                    <TextField
-                      label={newDeviceType === 'cucm' ? 'Publisher IP/Hostname' : 'Device IP/Hostname'}
-                      value={newHost}
-                      onChange={e => setNewHost(e.target.value)}
-                      placeholder="10.1.1.10"
-                      size="small"
-                      fullWidth
-                    />
-                  </Grid>
-                  <Grid item xs={4}>
-                    <TextField
-                      label="Port"
-                      type="number"
-                      value={newPort}
-                      onChange={e => setNewPort(Number(e.target.value))}
-                      size="small"
-                      fullWidth
-                    />
-                  </Grid>
-                </Grid>
-
-                <TextField
-                  label="Username"
-                  value={newUsername}
-                  onChange={e => setNewUsername(e.target.value)}
-                  size="small"
-                  fullWidth
-                />
-
-                <TextField
-                  label="Password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  size="small"
-                  fullWidth
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
-                          {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-
-                <Button
-                  variant="contained"
-                  startIcon={<Add />}
-                  onClick={handleAddDevice}
-                  disabled={!newHost || !newUsername || !newPassword}
-                  fullWidth
-                >
-                  Add Device
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Device List */}
-        <Grid item xs={12} md={7}>
-          <Card variant="outlined" sx={{ minHeight: 400 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Dns /> Devices to Collect ({devices.length})
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-
-              {devices.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <Dns sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-                  <Typography color="text.secondary">
-                    No devices added yet. Add devices to collect logs from.
-                  </Typography>
-                </Box>
-              ) : (
-                <Box>
-                  {devices.map(device => {
-                    const config = deviceTypeConfig[device.type]
-                    return (
-                      <Accordion
-                        key={device.id}
-                        expanded={expandedDevice === device.id}
-                        onChange={() => setExpandedDevice(expandedDevice === device.id ? null : device.id)}
-                        sx={{ mb: 1 }}
-                      >
-                        <AccordionSummary expandIcon={<ExpandMore />}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-                            <Chip
-                              icon={config.icon}
-                              label={config.label}
-                              size="small"
-                              sx={{ bgcolor: config.color, color: 'white' }}
-                            />
-                            <Typography sx={{ flexGrow: 1 }}>{device.host}</Typography>
-                            {device.type === 'cucm' && device.discoveredNodes && (
-                              <Chip
-                                label={`${device.selectedNodes?.length || 0}/${device.discoveredNodes.length} nodes`}
-                                size="small"
-                                variant="outlined"
-                              />
-                            )}
-                            {isDiscovering === device.id && (
-                              <CircularProgress size={20} />
-                            )}
-                          </Box>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                          {device.type === 'cucm' && (
-                            <Box>
-                              {!device.discoveredNodes ? (
-                                <Box sx={{ textAlign: 'center', py: 2 }}>
-                                  <Button
-                                    variant="outlined"
-                                    onClick={() => handleDiscoverNodes(device)}
-                                    disabled={isDiscovering === device.id}
-                                    startIcon={isDiscovering === device.id ? <CircularProgress size={16} /> : undefined}
-                                  >
-                                    {isDiscovering === device.id ? 'Discovering...' : 'Discover Nodes'}
-                                  </Button>
-                                </Box>
-                              ) : (
-                                <List dense>
-                                  {device.discoveredNodes.map(node => (
-                                    <ListItem key={node.ip} disablePadding>
-                                      <ListItemIcon sx={{ minWidth: 36 }}>
-                                        <Checkbox
-                                          edge="start"
-                                          checked={device.selectedNodes?.includes(node.ip) || false}
-                                          onChange={() => handleToggleNode(device.id, node.ip)}
-                                          size="small"
-                                        />
-                                      </ListItemIcon>
-                                      <ListItemText
-                                        primary={node.host}
-                                        secondary={`${node.ip} - ${node.role}`}
-                                      />
-                                    </ListItem>
-                                  ))}
-                                </List>
-                              )}
-                            </Box>
-                          )}
-
-                          {(device.type === 'cube' || device.type === 'expressway') && (
-                            <Box>
-                              <FormControlLabel
-                                control={
-                                  <Checkbox
-                                    checked={device.includeDebug || false}
-                                    onChange={e => handleUpdateDevice(device.id, { includeDebug: e.target.checked })}
-                                    size="small"
-                                  />
-                                }
-                                label="Include debug logs (CPU intensive)"
-                              />
-                              {device.includeDebug && (
-                                <FormControl size="small" sx={{ ml: 4, minWidth: 120 }}>
-                                  <InputLabel>Duration</InputLabel>
-                                  <Select
-                                    value={device.debugDuration || 30}
-                                    label="Duration"
-                                    onChange={e => handleUpdateDevice(device.id, { debugDuration: Number(e.target.value) })}
-                                  >
-                                    <MenuItem value={15}>15 sec</MenuItem>
-                                    <MenuItem value={30}>30 sec</MenuItem>
-                                    <MenuItem value={60}>60 sec</MenuItem>
-                                  </Select>
-                                </FormControl>
-                              )}
-                            </Box>
-                          )}
-
-                          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                            <Button
-                              size="small"
-                              color="error"
-                              startIcon={<Delete />}
-                              onClick={() => handleRemoveDevice(device.id)}
-                            >
-                              Remove
-                            </Button>
-                          </Box>
-                        </AccordionDetails>
-                      </Accordion>
-                    )
-                  })}
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-    </Box>
-  )
-
-  // Render collection options step
-  const renderOptionsStep = () => (
-    <Box>
-      <Typography variant="h5" gutterBottom>
-        Collection Options
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Configure collection settings for {devices.length} device(s)
-      </Typography>
-
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Collection Type
-            </Typography>
-            <Divider sx={{ my: 2 }} />
-            <RadioGroup value={collectionType} onChange={e => setCollectionType(e.target.value as 'regular' | 'profile')}>
-              <FormControlLabel value="regular" control={<Radio />} label="Regular Bundle (recommended)" />
-              <FormControlLabel value="profile" control={<Radio />} label="Choose by Service" />
-            </RadioGroup>
-
-            {collectionType === 'profile' && profiles.length > 0 && (
-              <FormControl fullWidth sx={{ mt: 2 }}>
-                <InputLabel>Profile</InputLabel>
-                <Select
-                  value={selectedProfile}
-                  label="Profile"
-                  onChange={e => setSelectedProfile(e.target.value)}
-                >
-                  {profiles.map(p => (
-                    <MenuItem key={p.name} value={p.name}>
-                      {p.name} - {p.description}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-
-            {collectionType === 'regular' && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Uses <strong>callmanager_full</strong> profile (complete CallManager logs)
-              </Typography>
-            )}
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Time Range
-            </Typography>
-            <Divider sx={{ my: 2 }} />
-            <RadioGroup value={timeRangeType} onChange={e => setTimeRangeType(e.target.value as 'relative' | 'absolute')}>
-              <FormControlLabel
-                value="relative"
-                control={<Radio />}
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    Last
-                    <Select
-                      size="small"
-                      value={relativeMinutes}
-                      onChange={e => setRelativeMinutes(Number(e.target.value))}
-                      sx={{ minWidth: 80 }}
-                    >
-                      <MenuItem value={30}>30</MenuItem>
-                      <MenuItem value={60}>60</MenuItem>
-                      <MenuItem value={120}>120</MenuItem>
-                      <MenuItem value={240}>240</MenuItem>
-                    </Select>
-                    minutes
-                  </Box>
-                }
-              />
-              <FormControlLabel value="absolute" control={<Radio />} label="Custom Range" disabled />
-            </RadioGroup>
-          </Paper>
-        </Grid>
-
-        {/* CUBE Profile Selection */}
-        {devices.some(d => d.type === 'cube') && (
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                CUBE Collection Profile
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              <FormControl fullWidth>
-                <InputLabel>Profile</InputLabel>
-                <Select
-                  value={selectedCubeProfile}
-                  label="Profile"
-                  onChange={e => setSelectedCubeProfile(e.target.value as string)}
-                >
-                  {cubeProfiles.map(p => (
-                    <MenuItem key={p.name} value={p.name}>
-                      {p.name} - {p.description}
-                    </MenuItem>
-                  ))}
-                  {cubeProfiles.length === 0 && (
-                    <MenuItem value="" disabled>Loading profiles...</MenuItem>
-                  )}
-                </Select>
-              </FormControl>
-              {(() => {
-                const selectedProfile = cubeProfiles.find(p => p.name === selectedCubeProfile)
-                const isDebugProfile = selectedProfile?.include_debug || selectedCubeProfile.includes('debug')
-                return isDebugProfile ? (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="body2" gutterBottom>
-                      Debug Duration: {debugDuration} seconds
-                    </Typography>
-                    <Select
-                      size="small"
-                      value={debugDuration}
-                      onChange={e => setDebugDuration(Number(e.target.value))}
-                      sx={{ minWidth: 120 }}
-                    >
-                      <MenuItem value={15}>15 sec</MenuItem>
-                      <MenuItem value={30}>30 sec</MenuItem>
-                      <MenuItem value={60}>60 sec</MenuItem>
-                      <MenuItem value={120}>120 sec</MenuItem>
-                      <MenuItem value={180}>180 sec</MenuItem>
-                      <MenuItem value={300}>300 sec</MenuItem>
-                    </Select>
-                    <Alert severity="warning" sx={{ mt: 1 }}>
-                      Debug mode is CPU intensive and auto-disables after collection
-                    </Alert>
-                  </Box>
-                ) : null
-              })()}
-            </Paper>
-          </Grid>
-        )}
-
-        {/* Expressway Profile Selection */}
-        {devices.some(d => d.type === 'expressway') && (
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Expressway Collection Profile
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              <FormControl fullWidth>
-                <InputLabel>Profile</InputLabel>
-                <Select
-                  value={selectedExpresswayProfile}
-                  label="Profile"
-                  onChange={e => setSelectedExpresswayProfile(e.target.value as string)}
-                >
-                  {expresswayProfiles.map(p => (
-                    <MenuItem key={p.name} value={p.name}>
-                      {p.name} - {p.description}
-                    </MenuItem>
-                  ))}
-                  {expresswayProfiles.length === 0 && (
-                    <MenuItem value="" disabled>Loading profiles...</MenuItem>
-                  )}
-                </Select>
-              </FormControl>
-            </Paper>
-          </Grid>
-        )}
-
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Devices Summary
-            </Typography>
-            <Divider sx={{ my: 2 }} />
-            <List dense>
-              {devices.map(device => {
-                const config = deviceTypeConfig[device.type]
-                const getProfileLabel = () => {
-                  if (device.type === 'cucm') {
-                    return `${device.selectedNodes?.length || 0} nodes selected`
-                  } else if (device.type === 'cube') {
-                    return `Profile: ${selectedCubeProfile}`
-                  } else {
-                    return `Profile: ${selectedExpresswayProfile}`
-                  }
-                }
-                return (
-                  <ListItem key={device.id}>
-                    <ListItemIcon>
-                      <Chip
-                        icon={config?.icon}
-                        label={config?.label || device.type}
-                        size="small"
-                        sx={{ bgcolor: config?.color || '#666', color: 'white' }}
-                      />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={device.host || 'Unknown host'}
-                      secondary={getProfileLabel()}
-                    />
-                  </ListItem>
-                )
-              })}
-            </List>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Box>
-  )
-
-  // Render progress step
-  const renderProgressStep = () => (
-    <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-      {collectionError ? (
-        <Box sx={{ textAlign: 'center' }}>
-          <ErrorIcon sx={{ fontSize: 64, color: 'error.main', mb: 2 }} />
-          <Typography variant="h5" gutterBottom color="error">
-            Collection Failed
-          </Typography>
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {collectionError}
-          </Alert>
-          <Button variant="contained" onClick={handleNewCollection}>
-            Try Again
-          </Button>
-        </Box>
-      ) : collectionStatus === 'completed' ? (
-        <Box>
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-            <Typography variant="h5" gutterBottom>
-              Collection Complete
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconButton onClick={() => navigate('/')}>
+            <ArrowBack />
+          </IconButton>
+          <Box>
+            <Typography variant="h4" gutterBottom>
+              Log Collection
             </Typography>
             <Typography color="text.secondary">
-              Logs collected from {devices.length} device(s)
+              Collect logs from CUCM, CUBE, and Expressway devices
             </Typography>
           </Box>
-
-          {/* Individual device downloads */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Download Individual Logs
-            </Typography>
-            <Divider sx={{ my: 2 }} />
-            <List dense>
-              {devices.map(device => {
-                const config = deviceTypeConfig[device.type]
-                const progress = deviceProgress[device.id]
-                const canDownload = progress?.status === 'completed' && progress?.downloadAvailable
-                return (
-                  <ListItem key={device.id}>
-                    <ListItemIcon>
-                      {canDownload ? (
-                        <CheckCircle color="success" />
-                      ) : progress?.status === 'failed' ? (
-                        <ErrorIcon color="error" />
-                      ) : (
-                        <PendingIcon color="disabled" />
-                      )}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip label={config?.label || device.type} size="small" sx={{ bgcolor: config?.color || '#666', color: 'white' }} />
-                          {device.host || 'Unknown'}
-                        </Box>
-                      }
-                      secondary={canDownload ? 'Ready to download' : progress?.status === 'failed' ? 'Collection failed' : 'Processing...'}
-                    />
-                    <ListItemSecondaryAction>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<Download />}
-                        onClick={() => handleDownloadDevice(device)}
-                        disabled={!canDownload}
-                      >
-                        Download
-                      </Button>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                )
-              })}
-            </List>
-          </Paper>
-
-          {/* Bundle progress indicator */}
-          {isBundling && (
-            <Paper sx={{ p: 2, mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <CircularProgress size={24} />
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="body2">Creating bundle...</Typography>
-                  <LinearProgress variant="determinate" value={bundleProgress} sx={{ mt: 1 }} />
-                </Box>
-                <Typography variant="body2">{bundleProgress}%</Typography>
-              </Box>
-            </Paper>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Add />}
+            onClick={() => setShowAddDevice(true)}
+            disabled={isCollecting}
+          >
+            Add Device
+          </Button>
+          {devices.length > 0 && !collectionComplete && (
+            <Button
+              variant="contained"
+              startIcon={isCollecting ? <CircularProgress size={20} color="inherit" /> : <PlayArrow />}
+              onClick={handleStartCollection}
+              disabled={!canStartCollection() || isCollecting}
+            >
+              {isCollecting ? 'Collecting...' : 'Collect Logs'}
+            </Button>
           )}
-
-          {/* Action buttons */}
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {collectionComplete && getDownloadableCount() > 0 && (
             <Button
               variant="contained"
               startIcon={isBundling ? <CircularProgress size={20} color="inherit" /> : <Download />}
               onClick={handleDownloadBundle}
               disabled={isBundling}
             >
-              {isBundling ? 'Bundling...' : `Download Bundle (${devices.filter(d => deviceProgress[d.id]?.downloadAvailable).length} files)`}
+              {isBundling ? `Bundling ${bundleProgress}%` : `Download All (${getDownloadableCount()})`}
             </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadAll}
-              disabled={isBundling}
-            >
-              Download Separately
-            </Button>
-            <Button variant="outlined" onClick={handleNewCollection} disabled={isBundling}>
-              New Collection
-            </Button>
-          </Box>
-        </Box>
-      ) : (
-        <Box>
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <PendingIcon sx={{ fontSize: 64, color: 'info.main', mb: 2 }} />
-            <Typography variant="h5" gutterBottom>
-              Collecting Logs...
-            </Typography>
-            <Typography color="text.secondary">
-              Collecting from {devices.length} device(s) simultaneously
-            </Typography>
-          </Box>
-
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2">Overall Progress</Typography>
-                <Typography variant="body2">{getTotalProgress()}%</Typography>
-              </Box>
-              <LinearProgress variant="determinate" value={getTotalProgress()} sx={{ height: 8, borderRadius: 4 }} />
-            </Box>
-
-            <Divider sx={{ my: 2 }} />
-
-            <List dense>
-              {devices.map(device => {
-                const config = deviceTypeConfig[device.type]
-                const progress = deviceProgress[device.id] || { status: 'pending', progress: 0 }
-                const canDownload = progress.status === 'completed' && progress.downloadAvailable
-                return (
-                  <ListItem key={device.id}>
-                    <ListItemIcon>
-                      {progress.status === 'completed' ? (
-                        <CheckCircle color="success" />
-                      ) : progress.status === 'failed' ? (
-                        <ErrorIcon color="error" />
-                      ) : progress.status === 'running' ? (
-                        <CircularProgress size={24} />
-                      ) : (
-                        <PendingIcon color="disabled" />
-                      )}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip label={config?.label || device.type} size="small" sx={{ bgcolor: config?.color || '#666', color: 'white' }} />
-                          {device.host || 'Unknown'}
-                        </Box>
-                      }
-                      secondary={
-                        <LinearProgress
-                          variant="determinate"
-                          value={progress.progress}
-                          sx={{ mt: 1, height: 4, borderRadius: 2 }}
-                        />
-                      }
-                    />
-                    <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {canDownload ? (
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => handleDownloadDevice(device)}
-                          title="Download"
-                        >
-                          <Download />
-                        </IconButton>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          {progress.progress}%
-                        </Typography>
-                      )}
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                )
-              })}
-            </List>
-          </Paper>
-
-          <Box sx={{ textAlign: 'center' }}>
-            <Button variant="outlined" color="error" onClick={handleNewCollection}>
-              Cancel
-            </Button>
-          </Box>
-        </Box>
-      )}
-    </Box>
-  )
-
-  return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <IconButton onClick={() => navigate('/')}>
-          <ArrowBack />
-        </IconButton>
-        <Box>
-          <Typography variant="h4">Log Collection</Typography>
-          <Typography color="text.secondary">
-            Collect logs from CUCM clusters, CUBE, and Expressway devices
-          </Typography>
+          )}
         </Box>
       </Box>
 
-      <Stepper activeStep={getActiveStep()} sx={{ mb: 4 }}>
-        {steps.map(label => (
-          <Step key={label}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
-        ))}
-      </Stepper>
+      {/* No devices state */}
+      {devices.length === 0 && (
+        <Paper sx={{ p: 6, textAlign: 'center' }}>
+          <FolderOpen sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
+          <Typography variant="h5" color="text.secondary" gutterBottom>
+            No Devices Configured
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 3 }}>
+            Add devices to collect logs from CUCM clusters, CUBE, and Expressway
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setShowAddDevice(true)}
+          >
+            Add Your First Device
+          </Button>
+        </Paper>
+      )}
 
-      <Paper sx={{ p: 4, minHeight: 500 }}>
-        {currentStep === 'devices' && renderDevicesStep()}
-        {currentStep === 'options' && renderOptionsStep()}
-        {currentStep === 'progress' && renderProgressStep()}
-
-        {/* Navigation buttons */}
-        {currentStep !== 'progress' && (
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+      {/* Collection Summary */}
+      {collectionComplete && (
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <CheckCircle sx={{ fontSize: 48 }} color="success" />
+              <Box>
+                <Typography variant="h5">Collection Complete</Typography>
+                <Typography color="text.secondary">
+                  {getDownloadableCount()} of {devices.length} devices ready for download
+                </Typography>
+              </Box>
+            </Box>
             <Button
-              startIcon={<ArrowBack />}
+              variant="outlined"
               onClick={() => {
-                if (currentStep === 'options') {
-                  setCurrentStep('devices')
-                } else {
-                  navigate('/')
-                }
+                setDevices([])
+                setDeviceProgress({})
+                setCollectionComplete(false)
               }}
             >
-              {currentStep === 'devices' ? 'Cancel' : 'Back'}
+              New Collection
             </Button>
-
-            {currentStep === 'devices' ? (() => {
-              const blockingReason = getBlockingReason()
-              return (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {blockingReason && (
-                  <Typography variant="body2" color="text.secondary">
-                    {blockingReason}
-                  </Typography>
-                )}
-                <Button
-                  variant="contained"
-                  endIcon={<ArrowForward />}
-                  onClick={() => setCurrentStep('options')}
-                  disabled={devices.length === 0 || !areCucmDevicesReady() || isAnyDiscovering()}
-                >
-                  Next: Options
-                </Button>
-              </Box>
-              )
-            })() : (
-              <Button
-                variant="contained"
-                endIcon={<ArrowForward />}
-                onClick={handleStartCollection}
-                disabled={devices.length === 0 || !areCucmDevicesReady()}
-              >
-                Start Collection
-              </Button>
-            )}
           </Box>
+        </Paper>
+      )}
+
+      {/* Device Cards */}
+      {devices.length > 0 && (
+        <Grid container spacing={3}>
+          {devices.map(device => {
+            const config = deviceTypeConfig[device.type]
+            const progress = deviceProgress[device.id]
+            const hasProgress = !!progress
+            const status = progress?.status || 'pending'
+
+            return (
+              <Grid item xs={12} sm={6} md={4} key={device.id}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderLeft: 4,
+                    borderColor: hasProgress ? getStatusColor(status) : 'grey.300',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: 4,
+                    },
+                  }}
+                >
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
+                      <Chip
+                        icon={config.icon}
+                        label={config.label}
+                        size="small"
+                        sx={{ bgcolor: config.color, color: 'white' }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => handleRemoveDevice(device.id)}
+                        disabled={isCollecting}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Box>
+
+                    <Typography variant="h6" gutterBottom>
+                      {device.host}
+                    </Typography>
+
+                    {/* CUCM node info */}
+                    {device.type === 'cucm' && (
+                      <Box sx={{ mb: 2 }}>
+                        {device.discoveredNodes ? (
+                          <Chip
+                            label={`${device.selectedNodes?.length || 0}/${device.discoveredNodes.length} nodes`}
+                            size="small"
+                            variant="outlined"
+                            onClick={() => setNodeSelectionDevice(device)}
+                            sx={{ cursor: 'pointer' }}
+                          />
+                        ) : status === 'discovering' ? (
+                          <Chip label="Discovering..." size="small" icon={<CircularProgress size={14} />} />
+                        ) : (
+                          <Button size="small" onClick={() => handleDiscoverNodes(device)}>
+                            Discover Nodes
+                          </Button>
+                        )}
+                      </Box>
+                    )}
+
+                    {/* Status display */}
+                    {hasProgress && (
+                      <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          {getStatusIcon(status, 20)}
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            sx={{ color: getStatusColor(status) }}
+                          >
+                            {status === 'running' ? 'Collecting...' :
+                             status === 'discovering' ? 'Discovering...' :
+                             status === 'completed' ? 'Complete' :
+                             status === 'failed' ? 'Failed' : 'Ready'}
+                          </Typography>
+                        </Box>
+
+                        {progress.message && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            {progress.message}
+                          </Typography>
+                        )}
+
+                        {(status === 'running' || status === 'discovering') && (
+                          <LinearProgress
+                            variant="determinate"
+                            value={progress.progress}
+                            sx={{ height: 6, borderRadius: 3 }}
+                          />
+                        )}
+
+                        {status === 'completed' && progress.downloadAvailable && (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                            <Chip
+                              label="Ready"
+                              size="small"
+                              icon={<CheckCircle fontSize="small" />}
+                              color="success"
+                              variant="outlined"
+                            />
+                          </Box>
+                        )}
+                      </>
+                    )}
+
+                    {!hasProgress && device.type !== 'cucm' && (
+                      <Typography variant="body2" color="text.secondary">
+                        Ready to collect
+                      </Typography>
+                    )}
+                  </CardContent>
+
+                  <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
+                    <Button
+                      size="small"
+                      onClick={() => setSelectedDevice(device)}
+                    >
+                      View Details
+                    </Button>
+                    <Button
+                      size="small"
+                      startIcon={<Download />}
+                      onClick={() => handleDownloadDevice(device)}
+                      disabled={!progress?.downloadAvailable}
+                    >
+                      Download
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+            )
+          })}
+        </Grid>
+      )}
+
+      {/* Collection Profiles - show before collection starts */}
+      {devices.length > 0 && !isCollecting && !collectionComplete && (
+        <Paper sx={{ p: 3, mt: 3 }}>
+          <Typography variant="h6" gutterBottom>Collection Profiles</Typography>
+          <Divider sx={{ my: 2 }} />
+          <Grid container spacing={3}>
+            {devices.some(d => d.type === 'cucm') && (
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>CUCM Profile</InputLabel>
+                  <Select
+                    value={selectedCucmProfile}
+                    label="CUCM Profile"
+                    onChange={e => setSelectedCucmProfile(e.target.value)}
+                  >
+                    <MenuItem value="callmanager_full">CallManager Full Bundle</MenuItem>
+                    {cucmProfiles.map(p => (
+                      <MenuItem key={p.name} value={p.name}>{p.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+            {devices.some(d => d.type === 'cube') && (
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>CUBE Profile</InputLabel>
+                  <Select
+                    value={selectedCubeProfile}
+                    label="CUBE Profile"
+                    onChange={e => setSelectedCubeProfile(e.target.value)}
+                  >
+                    {cubeProfiles.map(p => (
+                      <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+            {devices.some(d => d.type === 'expressway') && (
+              <Grid item xs={12} md={4}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Expressway Profile</InputLabel>
+                  <Select
+                    value={selectedExpresswayProfile}
+                    label="Expressway Profile"
+                    onChange={e => setSelectedExpresswayProfile(e.target.value)}
+                  >
+                    {expresswayProfiles.map(p => (
+                      <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+          </Grid>
+        </Paper>
+      )}
+
+      {/* Add Device Dialog */}
+      <Dialog open={showAddDevice} onClose={() => setShowAddDevice(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add Device</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <FormControl fullWidth>
+              <InputLabel>Device Type</InputLabel>
+              <Select
+                value={newDeviceType}
+                label="Device Type"
+                onChange={e => handleDeviceTypeChange(e.target.value as DeviceType)}
+              >
+                <MenuItem value="cucm">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CucmIcon /> CUCM Cluster
+                  </Box>
+                </MenuItem>
+                <MenuItem value="cube">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CubeIcon /> CUBE / IOS-XE
+                  </Box>
+                </MenuItem>
+                <MenuItem value="expressway">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ExpresswayIcon /> Expressway
+                  </Box>
+                </MenuItem>
+              </Select>
+            </FormControl>
+
+            <Grid container spacing={2}>
+              <Grid item xs={8}>
+                <TextField
+                  label={newDeviceType === 'cucm' ? 'Publisher Host' : 'Device Host'}
+                  value={newHost}
+                  onChange={e => setNewHost(e.target.value)}
+                  placeholder="10.1.1.10"
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={4}>
+                <TextField
+                  label="Port"
+                  type="number"
+                  value={newPort}
+                  onChange={e => setNewPort(Number(e.target.value))}
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+
+            <TextField
+              label="Username"
+              value={newUsername}
+              onChange={e => setNewUsername(e.target.value)}
+              fullWidth
+            />
+
+            <TextField
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              fullWidth
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAddDevice(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleAddDevice}
+            disabled={!newHost || !newUsername || !newPassword}
+          >
+            Add Device
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* CUCM Node Selection Dialog */}
+      <Dialog
+        open={!!nodeSelectionDevice}
+        onClose={() => setNodeSelectionDevice(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        {nodeSelectionDevice && (
+          <>
+            <DialogTitle>Select Nodes - {nodeSelectionDevice.host}</DialogTitle>
+            <DialogContent>
+              <List>
+                {nodeSelectionDevice.discoveredNodes?.map(node => (
+                  <ListItem key={node.ip} disablePadding>
+                    <ListItemIcon>
+                      <Checkbox
+                        edge="start"
+                        checked={nodeSelectionDevice.selectedNodes?.includes(node.ip) || false}
+                        onChange={() => handleToggleNode(nodeSelectionDevice.id, node.ip)}
+                      />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={node.host}
+                      secondary={`${node.ip} - ${node.role}`}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setNodeSelectionDevice(null)}>Done</Button>
+            </DialogActions>
+          </>
         )}
-      </Paper>
+      </Dialog>
+
+      {/* Device Detail Dialog */}
+      <Dialog
+        open={!!selectedDevice}
+        onClose={() => setSelectedDevice(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        {selectedDevice && (
+          <>
+            <DialogTitle>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Chip
+                    icon={deviceTypeConfig[selectedDevice.type].icon}
+                    label={deviceTypeConfig[selectedDevice.type].label}
+                    sx={{
+                      bgcolor: deviceTypeConfig[selectedDevice.type].color,
+                      color: 'white',
+                    }}
+                  />
+                  <Typography variant="h6">{selectedDevice.host}</Typography>
+                </Box>
+                <IconButton onClick={() => setSelectedDevice(null)}>
+                  <Close />
+                </IconButton>
+              </Box>
+            </DialogTitle>
+            <DialogContent>
+              {/* Device Info */}
+              <Paper variant="outlined" sx={{ mb: 2 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 2,
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: 'action.hover' },
+                  }}
+                  onClick={() => toggleSection('info')}
+                >
+                  <Typography variant="subtitle1" fontWeight="medium">Device Information</Typography>
+                  {expandedSections.info !== false ? <ExpandLess /> : <ExpandMore />}
+                </Box>
+                <Collapse in={expandedSections.info !== false}>
+                  <Divider />
+                  <Box sx={{ p: 2 }}>
+                    <Typography variant="body2">Host: {selectedDevice.host}</Typography>
+                    <Typography variant="body2">Port: {selectedDevice.port}</Typography>
+                    <Typography variant="body2">Username: {selectedDevice.username}</Typography>
+                    {selectedDevice.type === 'cucm' && selectedDevice.discoveredNodes && (
+                      <Typography variant="body2">
+                        Nodes: {selectedDevice.selectedNodes?.length || 0} / {selectedDevice.discoveredNodes.length}
+                      </Typography>
+                    )}
+                  </Box>
+                </Collapse>
+              </Paper>
+
+              {/* Collection Status */}
+              {deviceProgress[selectedDevice.id] && (
+                <Paper variant="outlined" sx={{ mb: 2 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      p: 2,
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'action.hover' },
+                    }}
+                    onClick={() => toggleSection('status')}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {getStatusIcon(deviceProgress[selectedDevice.id].status, 24)}
+                      <Typography variant="subtitle1" fontWeight="medium">Collection Status</Typography>
+                    </Box>
+                    {expandedSections.status !== false ? <ExpandLess /> : <ExpandMore />}
+                  </Box>
+                  <Collapse in={expandedSections.status !== false}>
+                    <Divider />
+                    <Box sx={{ p: 2 }}>
+                      <Typography variant="body2">
+                        Status: {deviceProgress[selectedDevice.id].status}
+                      </Typography>
+                      <Typography variant="body2">
+                        Progress: {deviceProgress[selectedDevice.id].progress}%
+                      </Typography>
+                      {deviceProgress[selectedDevice.id].message && (
+                        <Typography variant="body2">
+                          Message: {deviceProgress[selectedDevice.id].message}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Collapse>
+                </Paper>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button
+                startIcon={<ContentCopy />}
+                onClick={() => copyToClipboard(selectedDevice, 'Device data')}
+              >
+                Copy
+              </Button>
+              <Button
+                startIcon={<Download />}
+                onClick={() => handleDownloadDevice(selectedDevice)}
+                disabled={!deviceProgress[selectedDevice.id]?.downloadAvailable}
+              >
+                Download
+              </Button>
+              <Button variant="contained" onClick={() => setSelectedDevice(null)}>
+                Close
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </Box>
   )
 }
