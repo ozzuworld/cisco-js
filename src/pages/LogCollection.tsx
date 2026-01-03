@@ -133,6 +133,37 @@ export default function LogCollection() {
     }
   }
 
+  // Check if all CUCM devices have completed discovery and have nodes selected
+  const areCucmDevicesReady = () => {
+    const cucmDevices = devices.filter(d => d.type === 'cucm')
+    if (cucmDevices.length === 0) return true // No CUCM devices, OK to proceed
+
+    return cucmDevices.every(d =>
+      d.discoveredNodes &&
+      d.discoveredNodes.length > 0 &&
+      d.selectedNodes &&
+      d.selectedNodes.length > 0
+    )
+  }
+
+  // Check if any CUCM device is still discovering
+  const isAnyDiscovering = () => {
+    return isDiscovering !== null
+  }
+
+  // Get reason why we can't proceed (for tooltip/message)
+  const getBlockingReason = () => {
+    if (devices.length === 0) return 'Add at least one device'
+    if (isAnyDiscovering()) return 'Discovery in progress...'
+
+    const cucmDevices = devices.filter(d => d.type === 'cucm')
+    for (const d of cucmDevices) {
+      if (!d.discoveredNodes) return `Discover nodes for ${d.host}`
+      if (d.selectedNodes?.length === 0) return `Select nodes for ${d.host}`
+    }
+    return null
+  }
+
   const handleAddDevice = () => {
     if (!newHost || !newUsername || !newPassword) {
       enqueueSnackbar('Please fill in all required fields', { variant: 'warning' })
@@ -240,9 +271,13 @@ export default function LogCollection() {
       return
     }
 
-    // Validate CUCM devices have selected nodes
+    // Validate CUCM devices have discovered and selected nodes
     const cucmDevices = devices.filter(d => d.type === 'cucm')
     for (const device of cucmDevices) {
+      if (!device.discoveredNodes || device.discoveredNodes.length === 0) {
+        enqueueSnackbar(`Please discover nodes for CUCM cluster ${device.host} first`, { variant: 'warning' })
+        return
+      }
       if (!device.selectedNodes || device.selectedNodes.length === 0) {
         enqueueSnackbar(`Please select at least one node for ${device.host}`, { variant: 'warning' })
         return
@@ -986,20 +1021,27 @@ export default function LogCollection() {
             </Button>
 
             {currentStep === 'devices' ? (
-              <Button
-                variant="contained"
-                endIcon={<ArrowForward />}
-                onClick={() => setCurrentStep('options')}
-                disabled={devices.length === 0}
-              >
-                Next: Options
-              </Button>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {getBlockingReason() && (
+                  <Typography variant="body2" color="text.secondary">
+                    {getBlockingReason()}
+                  </Typography>
+                )}
+                <Button
+                  variant="contained"
+                  endIcon={<ArrowForward />}
+                  onClick={() => setCurrentStep('options')}
+                  disabled={devices.length === 0 || !areCucmDevicesReady() || isAnyDiscovering()}
+                >
+                  Next: Options
+                </Button>
+              </Box>
             ) : (
               <Button
                 variant="contained"
                 endIcon={<ArrowForward />}
                 onClick={handleStartCollection}
-                disabled={devices.length === 0}
+                disabled={devices.length === 0 || !areCucmDevicesReady()}
               >
                 Start Collection
               </Button>
