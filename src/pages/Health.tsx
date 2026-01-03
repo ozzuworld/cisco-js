@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Typography,
@@ -28,11 +28,8 @@ import {
   DialogActions,
   Collapse,
   Tooltip,
-  Switch,
-  Menu,
 } from '@mui/material'
 import {
-  Refresh,
   Visibility,
   VisibilityOff,
   HealthAndSafety,
@@ -50,7 +47,7 @@ import {
   Download,
   ContentCopy,
   Close,
-  Timer,
+  PlayArrow,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { healthService } from '@/services'
@@ -111,14 +108,6 @@ const expresswayCheckLabels: Record<ExpresswayHealthCheck, string> = {
   ntp: 'NTP Status',
 }
 
-// Refresh interval options
-const refreshIntervals = [
-  { value: 15000, label: '15s' },
-  { value: 30000, label: '30s' },
-  { value: 60000, label: '1min' },
-  { value: 300000, label: '5min' },
-]
-
 export default function Health() {
   const { enqueueSnackbar } = useSnackbar()
 
@@ -142,12 +131,6 @@ export default function Health() {
   // Loading and result state
   const [isChecking, setIsChecking] = useState(false)
   const [healthResult, setHealthResult] = useState<DeviceHealthResponse | null>(null)
-  const [lastChecked, setLastChecked] = useState<Date | null>(null)
-
-  // Auto-refresh state
-  const [autoRefresh, setAutoRefresh] = useState(false)
-  const [refreshInterval, setRefreshInterval] = useState(30000)
-  const [refreshMenuAnchor, setRefreshMenuAnchor] = useState<null | HTMLElement>(null)
 
   // Detail modal state
   const [selectedDevice, setSelectedDevice] = useState<DeviceHealthResult | null>(null)
@@ -193,11 +176,14 @@ export default function Health() {
   // Remove device from list
   const handleRemoveDevice = (id: string) => {
     setDevices(devices.filter(d => d.id !== id))
+    // Clear results if removing a device
+    setHealthResult(null)
   }
 
   // Run health check
-  const handleRunHealthCheck = useCallback(async () => {
+  const handleRunHealthCheck = async () => {
     if (devices.length === 0) {
+      enqueueSnackbar('Please add at least one device', { variant: 'warning' })
       return
     }
 
@@ -209,6 +195,7 @@ export default function Health() {
     }
 
     setIsChecking(true)
+    setHealthResult(null)
     try {
       const result = await healthService.checkDeviceHealth({
         devices: devices.map(d => ({
@@ -223,7 +210,7 @@ export default function Health() {
         })),
       })
       setHealthResult(result)
-      setLastChecked(new Date())
+      enqueueSnackbar('Health check completed', { variant: 'success' })
     } catch (error) {
       enqueueSnackbar(
         error instanceof Error ? error.message : 'Health check failed',
@@ -232,18 +219,7 @@ export default function Health() {
     } finally {
       setIsChecking(false)
     }
-  }, [devices, enqueueSnackbar])
-
-  // Auto-refresh effect
-  useEffect(() => {
-    if (!autoRefresh || devices.length === 0 || selectedDevice) return
-
-    const timer = setInterval(() => {
-      handleRunHealthCheck()
-    }, refreshInterval)
-
-    return () => clearInterval(timer)
-  }, [autoRefresh, refreshInterval, devices.length, selectedDevice, handleRunHealthCheck])
+  }
 
   // Get status icon
   const getStatusIcon = (status: HealthStatus, size: number = 48) => {
@@ -272,16 +248,6 @@ export default function Health() {
   // Format time
   const formatTime = (dateStr: string) => {
     return new Date(dateStr).toLocaleString()
-  }
-
-  // Format relative time
-  const formatRelativeTime = (date: Date) => {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
-    if (seconds < 60) return `${seconds}s ago`
-    const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    return `${hours}h ago`
   }
 
   // Format uptime
@@ -738,16 +704,21 @@ export default function Health() {
     )
   }
 
+  // Find device result by host
+  const getDeviceResult = (host: string): DeviceHealthResult | undefined => {
+    return healthResult?.devices.find(d => d.host === host)
+  }
+
   return (
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h4" gutterBottom>
-            Infrastructure Health
+            Device Health Check
           </Typography>
           <Typography color="text.secondary">
-            Monitor the health of CUCM, CUBE, and Expressway devices
+            Check the health of CUCM, CUBE, and Expressway devices
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -759,47 +730,14 @@ export default function Health() {
             Add Device
           </Button>
           {devices.length > 0 && (
-            <>
-              <Button
-                variant="contained"
-                startIcon={isChecking ? <CircularProgress size={20} color="inherit" /> : <Refresh />}
-                onClick={handleRunHealthCheck}
-                disabled={isChecking}
-              >
-                {isChecking ? 'Checking...' : 'Refresh'}
-              </Button>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Tooltip title="Auto-refresh">
-                  <Switch
-                    checked={autoRefresh}
-                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                    size="small"
-                  />
-                </Tooltip>
-                <Chip
-                  icon={<Timer />}
-                  label={refreshIntervals.find(i => i.value === refreshInterval)?.label || '30s'}
-                  size="small"
-                  onClick={(e) => setRefreshMenuAnchor(e.currentTarget)}
-                  sx={{ cursor: 'pointer' }}
-                />
-                <Menu
-                  anchorEl={refreshMenuAnchor}
-                  open={Boolean(refreshMenuAnchor)}
-                  onClose={() => setRefreshMenuAnchor(null)}
-                >
-                  {refreshIntervals.map(({ value, label }) => (
-                    <MenuItem
-                      key={value}
-                      selected={refreshInterval === value}
-                      onClick={() => { setRefreshInterval(value); setRefreshMenuAnchor(null) }}
-                    >
-                      {label}
-                    </MenuItem>
-                  ))}
-                </Menu>
-              </Box>
-            </>
+            <Button
+              variant="contained"
+              startIcon={isChecking ? <CircularProgress size={20} color="inherit" /> : <PlayArrow />}
+              onClick={handleRunHealthCheck}
+              disabled={isChecking}
+            >
+              {isChecking ? 'Checking...' : 'Check Health'}
+            </Button>
           )}
         </Box>
       </Box>
@@ -812,7 +750,7 @@ export default function Health() {
             No Devices Configured
           </Typography>
           <Typography color="text.secondary" sx={{ mb: 3 }}>
-            Add devices to start monitoring their health status
+            Add devices to check their health status
           </Typography>
           <Button
             variant="contained"
@@ -824,8 +762,8 @@ export default function Health() {
         </Paper>
       )}
 
-      {/* Overview Card */}
-      {healthResult && devices.length > 0 && (
+      {/* Results Summary */}
+      {healthResult && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -833,7 +771,7 @@ export default function Health() {
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="h5">
-                    {healthResult.overall_status.toUpperCase()}
+                    Overall: {healthResult.overall_status.toUpperCase()}
                   </Typography>
                   <Chip
                     size="small"
@@ -845,8 +783,7 @@ export default function Health() {
                   />
                 </Box>
                 <Typography variant="body2" color="text.secondary">
-                  {lastChecked && `Last checked: ${formatRelativeTime(lastChecked)}`}
-                  {autoRefresh && ` • Auto-refresh: ${refreshIntervals.find(i => i.value === refreshInterval)?.label}`}
+                  Checked at {formatTime(healthResult.checked_at)}
                 </Typography>
               </Box>
             </Box>
@@ -855,7 +792,7 @@ export default function Health() {
               startIcon={<Download />}
               onClick={downloadFullReport}
             >
-              Download Report
+              Download Full Report
             </Button>
           </Box>
 
@@ -910,20 +847,22 @@ export default function Health() {
       {/* Device Cards */}
       {devices.length > 0 && (
         <Grid container spacing={3}>
-          {(healthResult?.devices || devices.map(d => ({ device_type: d.device_type, host: d.host, status: 'unknown' as HealthStatus, reachable: true, checked_at: '', message: 'Not checked yet' }))).map((device, index) => {
+          {devices.map((device) => {
             const config = deviceTypeConfig[device.device_type]
-            const quickStatus = healthResult ? getDeviceQuickStatus(device as DeviceHealthResult) : []
-            const isResult = 'cucm_checks' in device || 'cube_checks' in device || 'expressway_checks' in device
+            const result = getDeviceResult(device.host)
+            const hasResult = !!result
+            const status: HealthStatus = result?.status || 'unknown'
+            const quickStatus = result ? getDeviceQuickStatus(result) : []
 
             return (
-              <Grid item xs={12} sm={6} md={4} key={`${device.device_type}-${device.host}-${index}`}>
+              <Grid item xs={12} sm={6} md={4} key={device.id}>
                 <Card
                   sx={{
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
                     borderLeft: 4,
-                    borderColor: getStatusColor(device.status),
+                    borderColor: hasResult ? getStatusColor(status) : 'grey.300',
                     transition: 'transform 0.2s, box-shadow 0.2s',
                     '&:hover': {
                       transform: 'translateY(-2px)',
@@ -943,7 +882,7 @@ export default function Health() {
                       </Box>
                       <IconButton
                         size="small"
-                        onClick={() => handleRemoveDevice(devices.find(d => d.host === device.host)?.id || '')}
+                        onClick={() => handleRemoveDevice(device.id)}
                       >
                         <Delete fontSize="small" />
                       </IconButton>
@@ -953,56 +892,67 @@ export default function Health() {
                       {device.host}
                     </Typography>
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      {getStatusIcon(device.status, 20)}
-                      <Typography
-                        variant="body1"
-                        fontWeight="medium"
-                        sx={{ color: getStatusColor(device.status) }}
-                      >
-                        {device.status.toUpperCase()}
-                      </Typography>
-                    </Box>
+                    {hasResult ? (
+                      <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          {getStatusIcon(status, 20)}
+                          <Typography
+                            variant="body1"
+                            fontWeight="medium"
+                            sx={{ color: getStatusColor(status) }}
+                          >
+                            {status.toUpperCase()}
+                          </Typography>
+                        </Box>
 
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {device.message}
-                    </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          {result?.message}
+                        </Typography>
 
-                    {quickStatus.length > 0 && (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {quickStatus.map(({ name, ok }) => (
-                          <Chip
-                            key={name}
-                            label={name}
-                            size="small"
-                            icon={ok ? <CheckCircle fontSize="small" /> : <Warning fontSize="small" />}
-                            color={ok ? 'success' : 'warning'}
-                            variant="outlined"
-                          />
-                        ))}
+                        {quickStatus.length > 0 && (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {quickStatus.map(({ name, ok }) => (
+                              <Chip
+                                key={name}
+                                label={name}
+                                size="small"
+                                icon={ok ? <CheckCircle fontSize="small" /> : <Warning fontSize="small" />}
+                                color={ok ? 'success' : 'warning'}
+                                variant="outlined"
+                              />
+                            ))}
+                          </Box>
+                        )}
+
+                        {result && !result.reachable && (
+                          <Alert severity="error" sx={{ mt: 2 }}>
+                            Device unreachable
+                          </Alert>
+                        )}
+                      </>
+                    ) : (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                        <HelpOutline fontSize="small" />
+                        <Typography variant="body2">
+                          {isChecking ? 'Checking...' : 'Not checked yet'}
+                        </Typography>
                       </Box>
-                    )}
-
-                    {!device.reachable && (
-                      <Alert severity="error" sx={{ mt: 2 }}>
-                        Device unreachable
-                      </Alert>
                     )}
                   </CardContent>
 
                   <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
                     <Button
                       size="small"
-                      onClick={() => isResult && setSelectedDevice(device as DeviceHealthResult)}
-                      disabled={!isResult}
+                      onClick={() => result && setSelectedDevice(result)}
+                      disabled={!hasResult}
                     >
                       View Details
                     </Button>
                     <Button
                       size="small"
                       startIcon={<Download />}
-                      onClick={() => isResult && downloadDeviceReport(device as DeviceHealthResult, 'json')}
-                      disabled={!isResult}
+                      onClick={() => result && downloadDeviceReport(result, 'json')}
+                      disabled={!hasResult}
                     >
                       Download
                     </Button>
