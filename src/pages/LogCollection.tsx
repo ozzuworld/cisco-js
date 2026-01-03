@@ -158,8 +158,8 @@ export default function LogCollection() {
 
     const cucmDevices = devices.filter(d => d.type === 'cucm')
     for (const d of cucmDevices) {
-      if (!d.discoveredNodes) return `Discover nodes for ${d.host}`
-      if (d.selectedNodes?.length === 0) return `Select nodes for ${d.host}`
+      if (!d.discoveredNodes) return `Discover nodes for ${d.host || 'CUCM'}`
+      if (!d.selectedNodes || d.selectedNodes.length === 0) return `Select nodes for ${d.host || 'CUCM'}`
     }
     return null
   }
@@ -841,19 +841,19 @@ export default function LogCollection() {
                   <ListItem key={device.id}>
                     <ListItemIcon>
                       <Chip
-                        icon={config.icon}
-                        label={config.label}
+                        icon={config?.icon}
+                        label={config?.label || device.type}
                         size="small"
-                        sx={{ bgcolor: config.color, color: 'white' }}
+                        sx={{ bgcolor: config?.color || '#666', color: 'white' }}
                       />
                     </ListItemIcon>
                     <ListItemText
-                      primary={device.host}
+                      primary={device.host || 'Unknown host'}
                       secondary={
                         device.type === 'cucm'
                           ? `${device.selectedNodes?.length || 0} nodes selected`
                           : device.includeDebug
-                          ? `Debug mode (${device.debugDuration}s)`
+                          ? `Debug mode (${device.debugDuration ?? 30}s)`
                           : 'VoIP trace'
                       }
                     />
@@ -944,8 +944,8 @@ export default function LogCollection() {
                     <ListItemText
                       primary={
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Chip label={config.label} size="small" sx={{ bgcolor: config.color, color: 'white' }} />
-                          {device.host}
+                          <Chip label={config?.label || device.type} size="small" sx={{ bgcolor: config?.color || '#666', color: 'white' }} />
+                          {device.host || 'Unknown'}
                         </Box>
                       }
                       secondary={
