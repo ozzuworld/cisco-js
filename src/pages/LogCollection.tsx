@@ -51,9 +51,9 @@ import {
 } from '@mui/icons-material'
 
 // Custom Cisco icons
-import cucmIcon from '@/assets/icons/communications-manager.png'
+import cucmIcon from '@/assets/icons/cucm.png'
 import cubeIcon from '@/assets/icons/cube.png'
-import expresswayIcon from '@/assets/icons/ip-gateway.png'
+import expresswayIcon from '@/assets/icons/expressway.png'
 
 // Icon component for custom images
 const DeviceIcon = ({ src, alt, size = 24 }: { src: string; alt: string; size?: number }) => (
