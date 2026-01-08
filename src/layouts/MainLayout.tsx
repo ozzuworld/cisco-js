@@ -2,18 +2,15 @@ import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
-  Drawer,
   AppBar,
   Toolbar,
-  List,
   Typography,
-  Divider,
   IconButton,
-  ListItem,
-  ListItemButton,
+  CssBaseline,
+  Menu,
+  MenuItem,
   ListItemIcon,
   ListItemText,
-  CssBaseline,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -21,10 +18,7 @@ import {
   Work as WorkIcon,
   Folder as FolderIcon,
   Settings as SettingsIcon,
-  ChevronLeft as ChevronLeftIcon,
 } from '@mui/icons-material'
-
-const drawerWidth = 240
 
 interface NavItem {
   text: string
@@ -40,85 +34,38 @@ const navItems: NavItem[] = [
 ]
 
 export default function MainLayout() {
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [desktopOpen, setDesktopOpen] = useState(true)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
+  const open = Boolean(anchorEl)
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen)
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget)
   }
 
-  const handleDesktopDrawerToggle = () => {
-    setDesktopOpen(!desktopOpen)
+  const handleMenuClose = () => {
+    setAnchorEl(null)
   }
 
   const handleNavigation = (path: string) => {
     navigate(path)
-    setMobileOpen(false)
+    handleMenuClose()
   }
-
-  const drawer = (
-    <Box>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-          CUCM Logs
-        </Typography>
-        <IconButton
-          onClick={handleDesktopDrawerToggle}
-          sx={{ display: { xs: 'none', sm: 'block' } }}
-        >
-          <ChevronLeftIcon />
-        </IconButton>
-      </Toolbar>
-      <Divider />
-      <List>
-        {navItems.map(item => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => handleNavigation(item.path)}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  )
 
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: desktopOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
-          ml: { sm: desktopOpen ? `${drawerWidth}px` : 0 },
-          transition: theme =>
-            theme.transitions.create(['width', 'margin'], {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.leavingScreen,
-            }),
-        }}
-      >
+      <AppBar position="fixed">
         <Toolbar>
           <IconButton
             color="inherit"
-            aria-label="open drawer"
+            aria-label="open menu"
+            aria-controls={open ? 'navigation-menu' : undefined}
+            aria-haspopup="true"
+            aria-expanded={open ? 'true' : undefined}
             edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <IconButton
-            color="inherit"
-            aria-label="toggle drawer"
-            edge="start"
-            onClick={handleDesktopDrawerToggle}
-            sx={{ mr: 2, display: { xs: 'none', sm: desktopOpen ? 'none' : 'block' } }}
+            onClick={handleMenuClick}
+            sx={{ mr: 2 }}
           >
             <MenuIcon />
           </IconButton>
@@ -127,48 +74,75 @@ export default function MainLayout() {
           </Typography>
         </Toolbar>
       </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { sm: desktopOpen ? drawerWidth : 0 }, flexShrink: { sm: 0 } }}
+
+      {/* Hamburger Menu Popup */}
+      <Menu
+        id="navigation-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleMenuClose}
+        MenuListProps={{
+          'aria-labelledby': 'menu-button',
+        }}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: '#1a1a2e',
+              color: 'white',
+              borderRadius: 2,
+              minWidth: 180,
+              mt: 1,
+              '& .MuiMenuItem-root': {
+                py: 1.5,
+                px: 2,
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                },
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(4, 159, 217, 0.3)',
+                  '&:hover': {
+                    bgcolor: 'rgba(4, 159, 217, 0.4)',
+                  },
+                },
+              },
+              '& .MuiListItemIcon-root': {
+                color: 'white',
+                minWidth: 40,
+              },
+              '& .MuiListItemText-primary': {
+                color: 'white',
+                fontWeight: 500,
+              },
+            },
+          },
+        }}
       >
-        {/* Mobile drawer */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true,
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        {/* Desktop drawer */}
-        <Drawer
-          variant="persistent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-          open={desktopOpen}
-        >
-          {drawer}
-        </Drawer>
-      </Box>
+        {navItems.map(item => (
+          <MenuItem
+            key={item.text}
+            selected={location.pathname === item.path}
+            onClick={() => handleNavigation(item.path)}
+          >
+            <ListItemIcon>{item.icon}</ListItemIcon>
+            <ListItemText primary={item.text} />
+          </MenuItem>
+        ))}
+      </Menu>
+
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { sm: desktopOpen ? `calc(100% - ${drawerWidth}px)` : '100%' },
-          transition: theme =>
-            theme.transitions.create('width', {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.leavingScreen,
-            }),
+          width: '100%',
         }}
       >
         <Toolbar />
