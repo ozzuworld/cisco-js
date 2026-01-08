@@ -61,6 +61,10 @@ import {
   DevicesOther,
   Settings,
   FolderOpen,
+  Lan,
+  Cable,
+  FilterAlt,
+  FiberManualRecord,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { captureService } from '@/services'
@@ -404,12 +408,12 @@ export default function CaptureSession() {
   const isFinished = session && canDownloadSession(session.status)
   const isFailed = session && (session.status === 'failed' || session.status === 'cancelled')
 
-  // Workflow steps
+  // Workflow steps with icons
   const workflowSteps = [
-    { label: 'Add Devices', description: 'Select devices to capture' },
-    { label: 'Configure', description: 'Set duration and filters' },
-    { label: 'Capture', description: 'Recording packets' },
-    { label: 'Download', description: 'Get capture files' },
+    { label: 'Devices', icon: <DevicesOther sx={{ fontSize: 16 }} /> },
+    { label: 'Configure', icon: <Settings sx={{ fontSize: 16 }} /> },
+    { label: 'Capture', icon: <FiberManualRecord sx={{ fontSize: 16 }} /> },
+    { label: 'Download', icon: <Download sx={{ fontSize: 16 }} /> },
   ]
 
   const getActiveStep = () => {
@@ -510,7 +514,7 @@ export default function CaptureSession() {
           border: `1px solid ${alpha(ACCENT_COLOR, 0.15)}`,
         }}
       >
-        {/* Mini Stepper */}
+        {/* Mini Stepper with Icons */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {workflowSteps.map((step, index) => {
             const isActive = index === getActiveStep()
@@ -520,22 +524,24 @@ export default function CaptureSession() {
                 <Chip
                   size="small"
                   label={step.label}
-                  icon={isCompleted ? <CheckCircle sx={{ fontSize: 16 }} /> : undefined}
+                  icon={isCompleted ? <CheckCircle sx={{ fontSize: 16 }} /> : step.icon}
                   sx={{
-                    height: 28,
+                    height: 30,
                     fontSize: '0.75rem',
                     fontWeight: isActive ? 600 : 400,
                     bgcolor: isCompleted ? '#10b981' : isActive ? ACCENT_COLOR : 'transparent',
                     color: isCompleted || isActive ? 'white' : 'text.secondary',
                     border: !isCompleted && !isActive ? '1px solid' : 'none',
                     borderColor: 'divider',
-                    '& .MuiChip-icon': { color: 'white' },
+                    '& .MuiChip-icon': {
+                      color: isCompleted || isActive ? 'white' : 'text.disabled',
+                    },
                   }}
                 />
                 {index < workflowSteps.length - 1 && (
                   <Box
                     sx={{
-                      width: 20,
+                      width: 24,
                       height: 2,
                       bgcolor: isCompleted ? '#10b981' : 'divider',
                       mx: 0.5,
@@ -689,7 +695,7 @@ export default function CaptureSession() {
         </Paper>
       )}
 
-      {/* Device Cards - Compact Grid */}
+      {/* Device Cards - Enhanced Grid */}
       {targets.length > 0 && (
         <Grid container spacing={2}>
           {targets.map(target => {
@@ -705,107 +711,149 @@ export default function CaptureSession() {
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    borderRadius: 2,
+                    borderRadius: 3,
                     overflow: 'hidden',
-                    borderLeft: `3px solid ${config.color}`,
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                    border: 'none',
+                    boxShadow: `0 2px 8px ${alpha(config.color, 0.15)}`,
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      transform: 'scale(1.02)',
-                      boxShadow: '0 6px 16px rgba(0,0,0,0.15)',
+                      transform: 'translateY(-4px)',
+                      boxShadow: `0 8px 24px ${alpha(config.color, 0.25)}`,
                     },
                   }}
                 >
-                  {/* Compact header */}
+                  {/* Gradient header with large icon */}
                   <Box
                     sx={{
                       px: 2,
-                      py: 1,
+                      py: 1.5,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      bgcolor: alpha(config.color, 0.05),
+                      background: `linear-gradient(135deg, ${alpha(config.color, 0.15)} 0%, ${alpha(config.color, 0.05)} 100%)`,
+                      borderBottom: `2px solid ${config.color}`,
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {React.cloneElement(config.icon, { sx: { fontSize: 18, color: config.color } })}
-                      <Typography variant="caption" fontWeight={600} color={config.color}>
-                        {config.label}
-                      </Typography>
-                      {/* Status dot */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Box
                         sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          bgcolor: hasStatus ? getStatusColor(status) : 'grey.300',
-                          ...(status === 'capturing' || status === 'configuring' || status === 'collecting' ? {
-                            animation: 'pulse 1.5s ease-in-out infinite',
-                            '@keyframes pulse': {
-                              '0%, 100%': { opacity: 1, transform: 'scale(1)' },
-                              '50%': { opacity: 0.5, transform: 'scale(1.3)' },
-                            },
-                          } : {}),
+                          width: 36,
+                          height: 36,
+                          borderRadius: 2,
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: `0 2px 8px ${alpha(config.color, 0.3)}`,
                         }}
-                      />
+                      >
+                        {React.cloneElement(config.icon, { sx: { fontSize: 20, color: config.color } })}
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" fontWeight={700} color={config.color} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          {config.label}
+                        </Typography>
+                        {/* Status indicator */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              bgcolor: hasStatus ? getStatusColor(status) : '#9ca3af',
+                              ...(status === 'capturing' || status === 'configuring' || status === 'collecting' ? {
+                                animation: 'pulse 1.5s ease-in-out infinite',
+                                '@keyframes pulse': {
+                                  '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+                                  '50%': { opacity: 0.5, transform: 'scale(1.3)' },
+                                },
+                              } : {}),
+                            }}
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                            {hasStatus ? targetStatusConfig[status]?.label : 'Ready'}
+                          </Typography>
+                        </Box>
+                      </Box>
                     </Box>
                     {!isCapturing && (
                       <IconButton
                         size="small"
                         onClick={() => handleRemoveTarget(target.id)}
-                        sx={{ p: 0.5 }}
+                        sx={{ p: 0.5, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
                       >
-                        <Delete sx={{ fontSize: 16 }} />
+                        <Delete sx={{ fontSize: 18 }} />
                       </IconButton>
                     )}
                   </Box>
 
-                  <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 1.5 }}>
+                  <CardContent sx={{ flexGrow: 1, p: 2 }}>
                     {/* Host */}
-                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 1.5, color: 'text.primary' }}>
                       {target.host}
                     </Typography>
 
-                    {/* Connection details - inline */}
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                      :{target.port} · {target.interface}
-                    </Typography>
+                    {/* Connection details with icons */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Lan sx={{ fontSize: 14, color: 'text.disabled' }} />
+                        <Typography variant="caption" color="text.secondary">
+                          Port {target.port}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Cable sx={{ fontSize: 14, color: 'text.disabled' }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {target.interface}
+                        </Typography>
+                      </Box>
+                    </Box>
 
                     {/* Status during capture */}
-                    {hasStatus && (
-                      <>
-                        {targetStatus.packets_captured != null && (
-                          <Chip
-                            label={`${targetStatus.packets_captured.toLocaleString()} pkts`}
-                            size="small"
-                            sx={{ height: 20, fontSize: '0.7rem', bgcolor: alpha(ACCENT_COLOR, 0.1), color: ACCENT_COLOR }}
-                          />
-                        )}
-                      </>
+                    {hasStatus && targetStatus.packets_captured != null && (
+                      <Box sx={{ mt: 1.5 }}>
+                        <Chip
+                          icon={<NetworkCheck sx={{ fontSize: 14 }} />}
+                          label={`${targetStatus.packets_captured.toLocaleString()} packets`}
+                          size="small"
+                          sx={{
+                            height: 24,
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            bgcolor: alpha(ACCENT_COLOR, 0.1),
+                            color: ACCENT_COLOR,
+                            '& .MuiChip-icon': { color: ACCENT_COLOR },
+                          }}
+                        />
+                      </Box>
                     )}
 
-                    {!hasStatus && (
-                      <Chip size="small" label="Ready" sx={{ height: 20, fontSize: '0.7rem', bgcolor: 'grey.100' }} />
-                    )}
-
+                    {/* Status chips for completed/failed */}
                     {status === 'completed' && (
-                      <Chip size="small" label="Done" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
+                      <Box sx={{ mt: 1.5 }}>
+                        <Chip size="small" label="Capture Complete" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
+                      </Box>
                     )}
 
                     {status === 'failed' && (
-                      <Chip size="small" label="Failed" color="error" sx={{ height: 20, fontSize: '0.7rem' }} />
+                      <Box sx={{ mt: 1.5 }}>
+                        <Chip size="small" label="Failed" color="error" sx={{ height: 24, fontSize: '0.7rem' }} />
+                      </Box>
                     )}
                   </CardContent>
 
-                  <CardActions sx={{ px: 1.5, pb: 1, pt: 0 }}>
+                  <CardActions sx={{ px: 2, pb: 1.5, pt: 0, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Button
                       size="small"
                       onClick={() => setSelectedTarget(target)}
-                      sx={{ ml: 'auto', fontSize: '0.75rem', py: 0.25 }}
+                      sx={{
+                        ml: 'auto',
+                        fontSize: '0.75rem',
+                        color: config.color,
+                        '&:hover': { bgcolor: alpha(config.color, 0.08) },
+                      }}
                     >
-                      Details
+                      View Details
                     </Button>
                   </CardActions>
                 </Card>
@@ -919,39 +967,64 @@ export default function CaptureSession() {
                     borderRadius: 2,
                     bgcolor: alpha('#7c3aed', 0.05),
                     border: `1px solid ${alpha('#7c3aed', 0.15)}`,
-                    cursor: 'pointer',
+                    minHeight: showFilters ? 'auto' : 88,
+                    display: 'flex',
+                    flexDirection: 'column',
                   }}
-                  onClick={() => setShowFilters(!showFilters)}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: showFilters ? 1.5 : 0 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setShowFilters(!showFilters)}
+                  >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <NetworkCheck sx={{ color: '#7c3aed', fontSize: 20 }} />
+                      <FilterAlt sx={{ color: '#7c3aed', fontSize: 20 }} />
                       <Typography variant="subtitle2" fontWeight={600}>Packet Filters</Typography>
+                      {(filterHost || filterPort) && (
+                        <Chip
+                          size="small"
+                          label="Active"
+                          sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#7c3aed', color: 'white' }}
+                        />
+                      )}
                     </Box>
                     {showFilters ? <ExpandLess sx={{ color: '#7c3aed' }} /> : <ExpandMore sx={{ color: '#7c3aed' }} />}
                   </Box>
+                  {!showFilters && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                      Click to add host/port filters
+                    </Typography>
+                  )}
+                  <Collapse in={showFilters}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                      <TextField
+                        label="Filter by Host IP"
+                        value={filterHost}
+                        onChange={e => setFilterHost(e.target.value)}
+                        placeholder="e.g., 10.0.0.50"
+                        size="small"
+                        fullWidth
+                        sx={{ bgcolor: 'background.paper' }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <TextField
+                        label="Filter by Port"
+                        type="number"
+                        value={filterPort}
+                        onChange={e => setFilterPort(e.target.value ? Number(e.target.value) : '')}
+                        placeholder="e.g., 5060"
+                        size="small"
+                        fullWidth
+                        sx={{ bgcolor: 'background.paper' }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </Box>
+                  </Collapse>
                 </Box>
-                <Collapse in={showFilters}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-                    <TextField
-                      label="Filter by Host IP"
-                      value={filterHost}
-                      onChange={e => setFilterHost(e.target.value)}
-                      placeholder="e.g., 10.0.0.50"
-                      size="small"
-                      fullWidth
-                    />
-                    <TextField
-                      label="Filter by Port"
-                      type="number"
-                      value={filterPort}
-                      onChange={e => setFilterPort(e.target.value ? Number(e.target.value) : '')}
-                      placeholder="e.g., 5060"
-                      size="small"
-                      fullWidth
-                    />
-                  </Box>
-                </Collapse>
               </Grid>
             </Grid>
 
