@@ -137,6 +137,9 @@ export default function LogCollection() {
   const [isBundling, setIsBundling] = useState(false)
   const [bundleProgress, setBundleProgress] = useState(0)
 
+  // Profiles section collapsed state
+  const [profilesExpanded, setProfilesExpanded] = useState(true)
+
   // Fallback profiles
   const fallbackCubeProfiles: DeviceProfile[] = [
     { name: 'voip_trace', description: 'VoIP Trace logs - SIP signaling', device_type: 'cube', method: 'voip_trace', include_debug: false },
@@ -770,7 +773,8 @@ export default function LogCollection() {
                     boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      boxShadow: `0 4px 12px rgba(0,0,0,0.12)`,
+                      transform: 'scale(1.02)',
+                      boxShadow: `0 6px 16px rgba(0,0,0,0.15)`,
                     },
                   }}
                 >
@@ -802,6 +806,13 @@ export default function LogCollection() {
                                    status === 'failed' ? '#f44336' :
                                    status === 'running' || status === 'discovering' ? '#ff9800' :
                                    'grey.300',
+                          ...(status === 'running' || status === 'discovering' ? {
+                            animation: 'pulse 1.5s ease-in-out infinite',
+                            '@keyframes pulse': {
+                              '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+                              '50%': { opacity: 0.5, transform: 'scale(1.3)' },
+                            },
+                          } : {}),
                         }}
                       />
                     </Box>
@@ -914,7 +925,7 @@ export default function LogCollection() {
       {devices.length > 0 && !isCollecting && !collectionComplete && (
         <Paper
           sx={{
-            p: 3,
+            p: 2,
             mt: 3,
             background: theme => theme.palette.mode === 'dark'
               ? 'linear-gradient(135deg, rgba(30,30,50,0.9) 0%, rgba(40,40,60,0.9) 100%)'
@@ -923,21 +934,36 @@ export default function LogCollection() {
             borderRadius: 3,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-            <Box
-              sx={{
-                width: 8,
-                height: 28,
-                borderRadius: 1,
-                bgcolor: 'primary.main',
-              }}
-            />
-            <Typography variant="h6" fontWeight={600}>Collection Profiles</Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              '&:hover': { opacity: 0.8 },
+            }}
+            onClick={() => setProfilesExpanded(!profilesExpanded)}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 8,
+                  height: 28,
+                  borderRadius: 1,
+                  bgcolor: 'primary.main',
+                }}
+              />
+              <Typography variant="h6" fontWeight={600}>Collection Profiles</Typography>
+            </Box>
+            <IconButton size="small">
+              {profilesExpanded ? <ExpandLess /> : <ExpandMore />}
+            </IconButton>
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Select the log collection profile for each device type
-          </Typography>
-          <Grid container spacing={3}>
+          <Collapse in={profilesExpanded}>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, mb: 2, ml: 3 }}>
+              Select the log collection profile for each device type
+            </Typography>
+            <Grid container spacing={3}>
             {devices.some(d => d.type === 'cucm') && (
               <Grid item xs={12} md={4}>
                 <Box
@@ -1029,7 +1055,8 @@ export default function LogCollection() {
                 </Box>
               </Grid>
             )}
-          </Grid>
+            </Grid>
+          </Collapse>
         </Paper>
       )}
 
