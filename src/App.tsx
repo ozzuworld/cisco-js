@@ -1,9 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { ThemeProvider } from '@mui/material/styles'
 import { CssBaseline } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SnackbarProvider } from 'notistack'
-import { theme } from './theme'
+import { ThemeProvider } from './context'
 import { ErrorBoundary } from './components'
 import MainLayout from './layouts/MainLayout'
 import Landing from './pages/Landing'
@@ -32,7 +31,7 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={theme}>
+        <ThemeProvider>
           <SnackbarProvider
             maxSnack={3}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}

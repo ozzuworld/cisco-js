@@ -644,10 +644,12 @@ export default function LogCollection() {
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 3,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    borderLeft: `4px solid ${config.color}`,
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                    transition: 'all 0.25s ease',
                     '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: 6,
+                      transform: 'translateY(-4px)',
+                      boxShadow: `0 12px 28px rgba(0,0,0,0.12), 0 0 0 1px ${config.color}20`,
                     },
                   }}
                 >
@@ -787,57 +789,121 @@ export default function LogCollection() {
 
       {/* Collection Profiles - show before collection starts */}
       {devices.length > 0 && !isCollecting && !collectionComplete && (
-        <Paper sx={{ p: 3, mt: 3 }}>
-          <Typography variant="h6" gutterBottom>Collection Profiles</Typography>
-          <Divider sx={{ my: 2 }} />
+        <Paper
+          sx={{
+            p: 3,
+            mt: 3,
+            background: theme => theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, rgba(30,30,50,0.9) 0%, rgba(40,40,60,0.9) 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
+            border: theme => `1px solid ${theme.palette.divider}`,
+            borderRadius: 3,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 28,
+                borderRadius: 1,
+                bgcolor: 'primary.main',
+              }}
+            />
+            <Typography variant="h6" fontWeight={600}>Collection Profiles</Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Select the log collection profile for each device type
+          </Typography>
           <Grid container spacing={3}>
             {devices.some(d => d.type === 'cucm') && (
               <Grid item xs={12} md={4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>CUCM Profile</InputLabel>
-                  <Select
-                    value={selectedCucmProfile}
-                    label="CUCM Profile"
-                    onChange={e => setSelectedCucmProfile(e.target.value)}
-                  >
-                    <MenuItem value="callmanager_full">CallManager Full Bundle</MenuItem>
-                    {cucmProfiles.map(p => (
-                      <MenuItem key={p.name} value={p.name}>{p.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(25,118,210,0.1)' : 'rgba(25,118,210,0.05)',
+                    border: '1px solid',
+                    borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(25,118,210,0.3)' : 'rgba(25,118,210,0.2)',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <CucmIcon sx={{ color: '#1976d2', fontSize: 20 }} />
+                    <Typography variant="subtitle2" fontWeight={600}>CUCM</Typography>
+                  </Box>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Profile</InputLabel>
+                    <Select
+                      value={selectedCucmProfile}
+                      label="Profile"
+                      onChange={e => setSelectedCucmProfile(e.target.value)}
+                    >
+                      <MenuItem value="callmanager_full">CallManager Full Bundle</MenuItem>
+                      {cucmProfiles.map(p => (
+                        <MenuItem key={p.name} value={p.name}>{p.name}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
               </Grid>
             )}
             {devices.some(d => d.type === 'cube') && (
               <Grid item xs={12} md={4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>CUBE Profile</InputLabel>
-                  <Select
-                    value={selectedCubeProfile}
-                    label="CUBE Profile"
-                    onChange={e => setSelectedCubeProfile(e.target.value)}
-                  >
-                    {cubeProfiles.map(p => (
-                      <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(237,108,2,0.1)' : 'rgba(237,108,2,0.05)',
+                    border: '1px solid',
+                    borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(237,108,2,0.3)' : 'rgba(237,108,2,0.2)',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <CubeIcon sx={{ color: '#ed6c02', fontSize: 20 }} />
+                    <Typography variant="subtitle2" fontWeight={600}>CUBE</Typography>
+                  </Box>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Profile</InputLabel>
+                    <Select
+                      value={selectedCubeProfile}
+                      label="Profile"
+                      onChange={e => setSelectedCubeProfile(e.target.value)}
+                    >
+                      {cubeProfiles.map(p => (
+                        <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
               </Grid>
             )}
             {devices.some(d => d.type === 'expressway') && (
               <Grid item xs={12} md={4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Expressway Profile</InputLabel>
-                  <Select
-                    value={selectedExpresswayProfile}
-                    label="Expressway Profile"
-                    onChange={e => setSelectedExpresswayProfile(e.target.value)}
-                  >
-                    {expresswayProfiles.map(p => (
-                      <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(156,39,176,0.1)' : 'rgba(156,39,176,0.05)',
+                    border: '1px solid',
+                    borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(156,39,176,0.3)' : 'rgba(156,39,176,0.2)',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <ExpresswayIcon sx={{ color: '#9c27b0', fontSize: 20 }} />
+                    <Typography variant="subtitle2" fontWeight={600}>Expressway</Typography>
+                  </Box>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Profile</InputLabel>
+                    <Select
+                      value={selectedExpresswayProfile}
+                      label="Profile"
+                      onChange={e => setSelectedExpresswayProfile(e.target.value)}
+                    >
+                      {expresswayProfiles.map(p => (
+                        <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
               </Grid>
             )}
           </Grid>

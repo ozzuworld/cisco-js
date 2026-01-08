@@ -11,6 +11,7 @@ import {
   ListItemIcon,
   ListItemText,
   CssBaseline,
+  Tooltip,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -21,8 +22,11 @@ import {
   NetworkCheck as CaptureIcon,
   Folder as FolderIcon,
   Settings as SettingsIcon,
+  DarkMode as DarkModeIcon,
+  LightMode as LightModeIcon,
 } from '@mui/icons-material'
 import { useJobNotifications } from '@/hooks'
+import { useTheme } from '@/context'
 
 interface NavItem {
   text: string
@@ -45,6 +49,7 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const menuOpen = Boolean(anchorEl)
+  const { isDark, toggleTheme } = useTheme()
 
   // Global job status notifications
   useJobNotifications()
@@ -132,9 +137,14 @@ export default function MainLayout() {
               </MenuItem>
             ))}
           </Menu>
-          <Typography variant="h6" noWrap component="div">
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             CUCM Log Collector
           </Typography>
+          <Tooltip title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+            <IconButton color="inherit" onClick={toggleTheme}>
+              {isDark ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
       <Box
