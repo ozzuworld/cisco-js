@@ -3,7 +3,6 @@ import {
   Box,
   Card,
   CardContent,
-  CardActionArea,
   Typography,
   Chip,
   Grid,
@@ -76,42 +75,42 @@ export default function ProfileSelector({
                     border: selectedProfileId === profile.id ? 2 : 0,
                     borderColor: 'primary.main',
                     position: 'relative',
+                    cursor: isLoading ? 'default' : 'pointer',
                   }}
+                  onClick={() => !isLoading && handleProfileClick(profile)}
                 >
-                  <CardActionArea onClick={() => handleProfileClick(profile)} disabled={isLoading}>
-                    <CardContent>
-                      {selectedProfileId === profile.id && (
-                        <CheckCircle
-                          color="primary"
-                          sx={{ position: 'absolute', top: 8, right: 8 }}
-                        />
-                      )}
-                      <Typography variant="h6" gutterBottom>
-                        {profile.name}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 2, minHeight: 40 }}
-                      >
-                        {profile.description}
-                      </Typography>
-                      <Chip
-                        label={`${profile.logTypes?.length || 0} log types`}
-                        size="small"
+                  <CardContent>
+                    {selectedProfileId === profile.id && (
+                      <CheckCircle
                         color="primary"
-                        variant="outlined"
-                        sx={{ mr: 1 }}
+                        sx={{ position: 'absolute', top: 8, right: 8 }}
                       />
-                      <Button
-                        size="small"
-                        startIcon={<InfoIcon />}
-                        onClick={e => handleViewDetails(profile, e)}
-                      >
-                        Details
-                      </Button>
-                    </CardContent>
-                  </CardActionArea>
+                    )}
+                    <Typography variant="h6" gutterBottom>
+                      {profile.name}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2, minHeight: 40 }}
+                    >
+                      {profile.description}
+                    </Typography>
+                    <Chip
+                      label={`${profile.logTypes?.length || 0} log types`}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      sx={{ mr: 1 }}
+                    />
+                    <Button
+                      size="small"
+                      startIcon={<InfoIcon />}
+                      onClick={e => handleViewDetails(profile, e)}
+                    >
+                      Details
+                    </Button>
+                  </CardContent>
                 </Card>
               </Grid>
             ))}
@@ -134,43 +133,43 @@ export default function ProfileSelector({
                     border: selectedProfileId === profile.id ? 2 : 0,
                     borderColor: 'primary.main',
                     position: 'relative',
+                    cursor: isLoading ? 'default' : 'pointer',
                   }}
+                  onClick={() => !isLoading && handleProfileClick(profile)}
                 >
-                  <CardActionArea onClick={() => handleProfileClick(profile)} disabled={isLoading}>
-                    <CardContent>
-                      {selectedProfileId === profile.id && (
-                        <CheckCircle
-                          color="primary"
-                          sx={{ position: 'absolute', top: 8, right: 8 }}
-                        />
-                      )}
-                      <Typography variant="h6" gutterBottom>
-                        {profile.name}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 2, minHeight: 40 }}
-                      >
-                        {profile.description}
-                      </Typography>
-                      <Chip
-                        label={`${profile.logTypes?.length || 0} log types`}
-                        size="small"
-                        color="secondary"
-                        variant="outlined"
-                        sx={{ mr: 1 }}
+                  <CardContent>
+                    {selectedProfileId === profile.id && (
+                      <CheckCircle
+                        color="primary"
+                        sx={{ position: 'absolute', top: 8, right: 8 }}
                       />
-                      <Chip label="Custom" size="small" color="secondary" sx={{ mr: 1 }} />
-                      <Button
-                        size="small"
-                        startIcon={<InfoIcon />}
-                        onClick={e => handleViewDetails(profile, e)}
-                      >
-                        Details
-                      </Button>
-                    </CardContent>
-                  </CardActionArea>
+                    )}
+                    <Typography variant="h6" gutterBottom>
+                      {profile.name}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2, minHeight: 40 }}
+                    >
+                      {profile.description}
+                    </Typography>
+                    <Chip
+                      label={`${profile.logTypes?.length || 0} log types`}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
+                      sx={{ mr: 1 }}
+                    />
+                    <Chip label="Custom" size="small" color="secondary" sx={{ mr: 1 }} />
+                    <Button
+                      size="small"
+                      startIcon={<InfoIcon />}
+                      onClick={e => handleViewDetails(profile, e)}
+                    >
+                      Details
+                    </Button>
+                  </CardContent>
                 </Card>
               </Grid>
             ))}

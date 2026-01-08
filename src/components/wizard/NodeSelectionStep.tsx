@@ -30,14 +30,14 @@ export function NodeSelectionStep({
 }: NodeSelectionStepProps) {
   const [selectedNodes, setSelectedNodes] = useState<string[]>(initialSelectedNodes)
 
-  const handleToggleNode = (hostname: string) => {
+  const handleToggleNode = (ip: string) => {
     setSelectedNodes(prev =>
-      prev.includes(hostname) ? prev.filter(h => h !== hostname) : [...prev, hostname]
+      prev.includes(ip) ? prev.filter(h => h !== ip) : [...prev, ip]
     )
   }
 
   const handleSelectAll = () => {
-    setSelectedNodes(nodes.map(n => n.hostname))
+    setSelectedNodes(nodes.map(n => n.ip))
   }
 
   const handleSelectNone = () => {
@@ -51,27 +51,12 @@ export function NodeSelectionStep({
   const allSelected = selectedNodes.length === nodes.length
   const noneSelected = selectedNodes.length === 0
 
-  const getRoleColor = (role: ClusterNode['role']) => {
-    switch (role) {
+  const getRoleColor = (role: string) => {
+    switch (role.toLowerCase()) {
       case 'publisher':
         return 'primary'
       case 'subscriber':
         return 'info'
-      case 'tftp':
-        return 'warning'
-      case 'cups':
-        return 'secondary'
-      default:
-        return 'default'
-    }
-  }
-
-  const getStatusColor = (status: ClusterNode['status']) => {
-    switch (status) {
-      case 'online':
-        return 'success'
-      case 'offline':
-        return 'error'
       default:
         return 'default'
     }
@@ -122,29 +107,28 @@ export function NodeSelectionStep({
               <TableCell>Hostname</TableCell>
               <TableCell>IP Address</TableCell>
               <TableCell>Role</TableCell>
-              <TableCell>Version</TableCell>
-              <TableCell>Status</TableCell>
+              <TableCell>Product</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {nodes.map(node => (
               <TableRow
-                key={node.hostname}
+                key={node.ip}
                 hover
-                onClick={() => handleToggleNode(node.hostname)}
+                onClick={() => handleToggleNode(node.ip)}
                 sx={{ cursor: 'pointer' }}
               >
                 <TableCell padding="checkbox">
-                  <Checkbox checked={selectedNodes.includes(node.hostname)} />
+                  <Checkbox checked={selectedNodes.includes(node.ip)} />
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" fontWeight="medium">
-                    {node.hostname}
+                    {node.host}
                   </Typography>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">
-                    {node.ipAddress}
+                    {node.ip}
                   </Typography>
                 </TableCell>
                 <TableCell>
@@ -152,11 +136,8 @@ export function NodeSelectionStep({
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">
-                    {node.version || 'Unknown'}
+                    {node.product || 'N/A'}
                   </Typography>
-                </TableCell>
-                <TableCell>
-                  <Chip label={node.status} color={getStatusColor(node.status)} size="small" />
                 </TableCell>
               </TableRow>
             ))}

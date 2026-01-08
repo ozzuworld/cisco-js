@@ -20,7 +20,7 @@ import {
   Visibility,
   Stop,
 } from '@mui/icons-material'
-import type { Job, JobStatus } from '@/types'
+import type { Job } from '@/types'
 
 interface JobStatusCardProps {
   job: Job
@@ -30,7 +30,7 @@ interface JobStatusCardProps {
 }
 
 const statusConfig: Record<
-  JobStatus,
+  string,
   {
     color: 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success'
     icon: React.ReactElement
@@ -41,6 +41,16 @@ const statusConfig: Record<
     color: 'default',
     icon: <HourglassEmpty />,
     label: 'Pending',
+  },
+  accepted: {
+    color: 'info',
+    icon: <HourglassEmpty />,
+    label: 'Accepted',
+  },
+  queued: {
+    color: 'default',
+    icon: <HourglassEmpty />,
+    label: 'Queued',
   },
   running: {
     color: 'info',
@@ -85,7 +95,12 @@ function formatDate(dateString: string): string {
 }
 
 export default function JobStatusCard({ job, onView, onCancel, onDownload }: JobStatusCardProps) {
-  const statusInfo = statusConfig[job.status]
+  // Fallback for unknown status values from backend
+  const statusInfo = statusConfig[job.status] || {
+    color: 'default' as const,
+    icon: <HourglassEmpty />,
+    label: job.status || 'Unknown',
+  }
   const isRunning = job.status === 'running'
   const isCompleted = job.status === 'completed'
   const canCancel = isRunning && onCancel

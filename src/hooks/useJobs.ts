@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { jobService } from '@/services'
+import { jobService, JobStatusResponse } from '@/services'
 import type { Job, JobDetails, CreateJobRequest, PaginatedResponse } from '@/types'
 
 export function useJobs(page = 1, pageSize = 20) {
@@ -49,7 +49,7 @@ export function useCancelJob() {
 }
 
 export function useJobStatus(jobId: string, enabled = true) {
-  return useQuery<{ status: Job['status']; progress?: number }>({
+  return useQuery<JobStatusResponse>({
     queryKey: ['jobStatus', jobId],
     queryFn: () => jobService.getJobStatus(jobId),
     enabled,

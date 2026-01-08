@@ -1,18 +1,17 @@
 // API Response Types based on CUCM Backend
 
 export interface ClusterNode {
-  hostname: string
-  ipAddress: string
-  role: 'publisher' | 'subscriber' | 'tftp' | 'cups'
-  version?: string
-  status: 'online' | 'offline' | 'unknown'
+  ip: string
+  fqdn: string
+  host: string
+  role: string
+  product?: string
+  dbrole?: string
+  raw?: string
 }
 
 export interface DiscoverResponse {
-  publisher: string
   nodes: ClusterNode[]
-  totalNodes: number
-  discoveredAt: string
 }
 
 export interface LogProfile {
@@ -62,9 +61,23 @@ export interface ConnectionRequest {
 }
 
 export interface CreateJobRequest {
-  connection: ConnectionRequest
-  profileId: string
-  nodes?: string[]
+  publisher_host: string
+  username: string
+  password: string
+  port?: number
+  nodes: string[]
+  profile: string
+  options?: CollectionOptions
+}
+
+export interface CollectionOptions {
+  time_mode?: 'relative' | 'range'
+  reltime_minutes?: number
+  start_time?: string
+  end_time?: string
+  compress?: boolean
+  recurs?: boolean
+  match?: string
 }
 
 export interface ApiError {

@@ -13,38 +13,24 @@ import {
   Typography,
   Box,
   Alert,
-  Tooltip,
 } from '@mui/material'
-import { CheckCircle, Error, HelpOutline } from '@mui/icons-material'
 import type { ClusterNode } from '@/types'
 
 interface NodeListProps {
   nodes: ClusterNode[]
   selectedNodes?: string[]
-  onSelectionChange?: (selectedHostnames: string[]) => void
+  onSelectionChange?: (selectedIps: string[]) => void
   selectable?: boolean
 }
 
 type Order = 'asc' | 'desc'
 type OrderBy = keyof ClusterNode
 
-const roleColors: Record<ClusterNode['role'], 'primary' | 'secondary' | 'info' | 'warning'> = {
+const roleColors: Record<string, 'primary' | 'secondary' | 'info' | 'warning' | 'default'> = {
+  Publisher: 'primary',
+  Subscriber: 'secondary',
   publisher: 'primary',
   subscriber: 'secondary',
-  tftp: 'info',
-  cups: 'warning',
-}
-
-const getStatusIcon = (status: ClusterNode['status']): React.ReactElement => {
-  switch (status) {
-    case 'online':
-      return <CheckCircle color="success" fontSize="small" />
-    case 'offline':
-      return <Error color="error" fontSize="small" />
-    case 'unknown':
-    default:
-      return <HelpOutline color="disabled" fontSize="small" />
-  }
 }
 
 export default function NodeList({
@@ -54,7 +40,7 @@ export default function NodeList({
   selectable = false,
 }: NodeListProps) {
   const [order, setOrder] = useState<Order>('asc')
-  const [orderBy, setOrderBy] = useState<OrderBy>('hostname')
+  const [orderBy, setOrderBy] = useState<OrderBy>('host')
 
   const handleRequestSort = (property: OrderBy) => {
     const isAsc = orderBy === property && order === 'asc'
@@ -65,19 +51,19 @@ export default function NodeList({
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!onSelectionChange) return
     if (event.target.checked) {
-      onSelectionChange(nodes.map(node => node.hostname))
+      onSelectionChange(nodes.map(node => node.ip))
     } else {
       onSelectionChange([])
     }
   }
 
-  const handleSelectNode = (hostname: string) => {
+  const handleSelectNode = (ip: string) => {
     if (!onSelectionChange) return
-    const currentIndex = selectedNodes.indexOf(hostname)
+    const currentIndex = selectedNodes.indexOf(ip)
     const newSelected = [...selectedNodes]
 
     if (currentIndex === -1) {
-      newSelected.push(hostname)
+      newSelected.push(ip)
     } else {
       newSelected.splice(currentIndex, 1)
     }
@@ -98,7 +84,7 @@ export default function NodeList({
     }
   })
 
-  const isSelected = (hostname: string) => selectedNodes.indexOf(hostname) !== -1
+  const isSelected = (ip: string) => selectedNodes.indexOf(ip) !== -1
   const numSelected = selectedNodes.length
   const rowCount = nodes.length
 
@@ -135,18 +121,18 @@ export default function NodeList({
               )}
               <TableCell>
                 <TableSortLabel
-                  active={orderBy === 'hostname'}
-                  direction={orderBy === 'hostname' ? order : 'asc'}
-                  onClick={() => handleRequestSort('hostname')}
+                  active={orderBy === 'host'}
+                  direction={orderBy === 'host' ? order : 'asc'}
+                  onClick={() => handleRequestSort('host')}
                 >
                   Hostname
                 </TableSortLabel>
               </TableCell>
               <TableCell>
                 <TableSortLabel
-                  active={orderBy === 'ipAddress'}
-                  direction={orderBy === 'ipAddress' ? order : 'asc'}
-                  onClick={() => handleRequestSort('ipAddress')}
+                  active={orderBy === 'ip'}
+                  direction={orderBy === 'ip' ? order : 'asc'}
+                  onClick={() => handleRequestSort('ip')}
                 >
                   IP Address
                 </TableSortLabel>
@@ -160,26 +146,17 @@ export default function NodeList({
                   Role
                 </TableSortLabel>
               </TableCell>
-              <TableCell>Version</TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={orderBy === 'status'}
-                  direction={orderBy === 'status' ? order : 'asc'}
-                  onClick={() => handleRequestSort('status')}
-                >
-                  Status
-                </TableSortLabel>
-              </TableCell>
+              <TableCell>Product</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {sortedNodes.map(node => {
-              const isItemSelected = isSelected(node.hostname)
+              const isItemSelected = isSelected(node.ip)
               return (
                 <TableRow
-                  key={node.hostname}
+                  key={node.ip}
                   hover
-                  onClick={selectable ? () => handleSelectNode(node.hostname) : undefined}
+                  onClick={selectable ? () => handleSelectNode(node.ip) : undefined}
                   role={selectable ? 'checkbox' : undefined}
                   selected={isItemSelected}
                   sx={{ cursor: selectable ? 'pointer' : 'default' }}
@@ -190,27 +167,24 @@ export default function NodeList({
                     </TableCell>
                   )}
                   <TableCell>
-                    <Typography variant="body2">{node.hostname}</Typography>
+                    <Typography variant="body2">{node.host}</Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary">
-                      {node.ipAddress}
+                      {node.ip}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip
                       label={node.role.toUpperCase()}
-                      color={roleColors[node.role]}
+                      color={roleColors[node.role] || 'default'}
                       size="small"
                     />
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" color="text.secondary">
-                      {node.version || 'N/A'}
+                      {node.product || 'N/A'}
                     </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip title={node.status}>{getStatusIcon(node.status)}</Tooltip>
                   </TableCell>
                 </TableRow>
               )
