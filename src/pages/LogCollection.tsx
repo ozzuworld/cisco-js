@@ -31,6 +31,10 @@ import {
   ListItemText,
   Checkbox,
   Collapse,
+  Stepper,
+  Step,
+  StepLabel,
+  alpha,
 } from '@mui/material'
 import {
   Visibility,
@@ -51,6 +55,10 @@ import {
   Dns as CucmIcon,
   Router as CubeIcon,
   Hub as ExpresswayIcon,
+  DevicesOther,
+  CloudDownload,
+  Person,
+  Cable,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { logService, jobService } from '@/services'
@@ -541,6 +549,28 @@ export default function LogCollection() {
     return devices.filter(d => deviceProgress[d.id]?.downloadAvailable).length
   }
 
+  // Workflow step calculation
+  const getActiveStep = () => {
+    if (collectionComplete) return 3
+    if (isCollecting) return 2
+    if (devices.length > 0) return 1
+    return 0
+  }
+
+  const workflowSteps = [
+    { label: 'Add Devices', description: 'Add CUCM, CUBE, or Expressway' },
+    { label: 'Configure', description: 'Select nodes and profiles' },
+    { label: 'Collect', description: 'Gather logs from devices' },
+    { label: 'Download', description: 'Get your log bundle' },
+  ]
+
+  // Device counts by type
+  const deviceCounts = {
+    cucm: devices.filter(d => d.type === 'cucm').length,
+    cube: devices.filter(d => d.type === 'cube').length,
+    expressway: devices.filter(d => d.type === 'expressway').length,
+  }
+
   return (
     <Box>
       {/* Header */}
@@ -549,7 +579,7 @@ export default function LogCollection() {
           <IconButton onClick={() => navigate('/')}>
             <ArrowBack />
           </IconButton>
-          <Typography variant="h5">Log Collection</Typography>
+          <Typography variant="h5" fontWeight={600}>Log Collection</Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Button
@@ -582,6 +612,210 @@ export default function LogCollection() {
           )}
         </Box>
       </Box>
+
+      {/* Workflow Stepper */}
+      <Paper
+        sx={{
+          p: 3,
+          mb: 3,
+          background: theme => theme.palette.mode === 'dark'
+            ? 'linear-gradient(135deg, rgba(4,159,217,0.1) 0%, rgba(30,30,50,0.9) 100%)'
+            : 'linear-gradient(135deg, rgba(4,159,217,0.05) 0%, rgba(255,255,255,0.95) 100%)',
+          borderRadius: 3,
+        }}
+      >
+        <Stepper activeStep={getActiveStep()} alternativeLabel>
+          {workflowSteps.map((step, index) => (
+            <Step key={step.label} completed={index < getActiveStep()}>
+              <StepLabel
+                optional={
+                  <Typography variant="caption" color="text.secondary">
+                    {step.description}
+                  </Typography>
+                }
+              >
+                {step.label}
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Paper>
+
+      {/* Stats Summary Bar */}
+      {devices.length > 0 && (
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            mb: 3,
+            flexWrap: 'wrap',
+          }}
+        >
+          {/* Total devices */}
+          <Paper
+            sx={{
+              px: 3,
+              py: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              borderRadius: 2,
+              flex: '1 1 auto',
+              minWidth: 140,
+            }}
+          >
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                bgcolor: theme => alpha(theme.palette.primary.main, 0.1),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <DevicesOther sx={{ color: 'primary.main' }} />
+            </Box>
+            <Box>
+              <Typography variant="h5" fontWeight={700}>{devices.length}</Typography>
+              <Typography variant="caption" color="text.secondary">Total Devices</Typography>
+            </Box>
+          </Paper>
+
+          {/* Device type breakdown */}
+          {deviceCounts.cucm > 0 && (
+            <Paper
+              sx={{
+                px: 3,
+                py: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                borderRadius: 2,
+                borderLeft: '3px solid #1976d2',
+              }}
+            >
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  bgcolor: alpha('#1976d2', 0.1),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CucmIcon sx={{ color: '#1976d2' }} />
+              </Box>
+              <Box>
+                <Typography variant="h5" fontWeight={700}>{deviceCounts.cucm}</Typography>
+                <Typography variant="caption" color="text.secondary">CUCM</Typography>
+              </Box>
+            </Paper>
+          )}
+
+          {deviceCounts.cube > 0 && (
+            <Paper
+              sx={{
+                px: 3,
+                py: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                borderRadius: 2,
+                borderLeft: '3px solid #ed6c02',
+              }}
+            >
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  bgcolor: alpha('#ed6c02', 0.1),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CubeIcon sx={{ color: '#ed6c02' }} />
+              </Box>
+              <Box>
+                <Typography variant="h5" fontWeight={700}>{deviceCounts.cube}</Typography>
+                <Typography variant="caption" color="text.secondary">CUBE</Typography>
+              </Box>
+            </Paper>
+          )}
+
+          {deviceCounts.expressway > 0 && (
+            <Paper
+              sx={{
+                px: 3,
+                py: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                borderRadius: 2,
+                borderLeft: '3px solid #9c27b0',
+              }}
+            >
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  bgcolor: alpha('#9c27b0', 0.1),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ExpresswayIcon sx={{ color: '#9c27b0' }} />
+              </Box>
+              <Box>
+                <Typography variant="h5" fontWeight={700}>{deviceCounts.expressway}</Typography>
+                <Typography variant="caption" color="text.secondary">Expressway</Typography>
+              </Box>
+            </Paper>
+          )}
+
+          {/* Ready for download indicator */}
+          {getDownloadableCount() > 0 && (
+            <Paper
+              sx={{
+                px: 3,
+                py: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                borderRadius: 2,
+                bgcolor: theme => alpha(theme.palette.success.main, 0.1),
+                borderLeft: '3px solid',
+                borderLeftColor: 'success.main',
+              }}
+            >
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  bgcolor: theme => alpha(theme.palette.success.main, 0.2),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CloudDownload sx={{ color: 'success.main' }} />
+              </Box>
+              <Box>
+                <Typography variant="h5" fontWeight={700} color="success.main">{getDownloadableCount()}</Typography>
+                <Typography variant="caption" color="text.secondary">Ready</Typography>
+              </Box>
+            </Paper>
+          )}
+        </Box>
+      )}
 
       {/* No devices state */}
       {devices.length === 0 && (
@@ -644,7 +878,7 @@ export default function LogCollection() {
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 3,
-                    borderLeft: `4px solid ${config.color}`,
+                    overflow: 'hidden',
                     boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
                     transition: 'all 0.25s ease',
                     '&:hover': {
@@ -653,43 +887,80 @@ export default function LogCollection() {
                     },
                   }}
                 >
-                  <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                    {/* Header with icon and delete */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                  {/* Colored header bar */}
+                  <Box
+                    sx={{
+                      background: `linear-gradient(135deg, ${config.color} 0%, ${alpha(config.color, 0.8)} 100%)`,
+                      px: 3,
+                      py: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      {React.cloneElement(config.icon, { sx: { fontSize: 24, color: 'white' } })}
+                      <Typography variant="subtitle1" fontWeight={600} sx={{ color: 'white' }}>
+                        {config.label}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {/* Status indicator dot */}
                       <Box
                         sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 2,
-                          bgcolor: config.color,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          bgcolor: status === 'completed' ? '#4caf50' :
+                                   status === 'failed' ? '#f44336' :
+                                   status === 'running' || status === 'discovering' ? '#ff9800' :
+                                   'rgba(255,255,255,0.5)',
+                          boxShadow: status === 'running' || status === 'discovering'
+                            ? '0 0 8px rgba(255,152,0,0.8)'
+                            : 'none',
                         }}
-                      >
-                        {React.cloneElement(config.icon, { sx: { fontSize: 28 } })}
-                      </Box>
+                      />
                       <IconButton
                         size="small"
                         onClick={() => handleRemoveDevice(device.id)}
                         disabled={isCollecting}
-                        sx={{ color: 'text.disabled' }}
+                        sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}
                       >
                         <Delete fontSize="small" />
                       </IconButton>
                     </Box>
+                  </Box>
 
+                  <CardContent sx={{ flexGrow: 1, p: 3 }}>
                     {/* Host */}
-                    <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 600 }}>
+                    <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
                       {device.host}
                     </Typography>
 
-                    {/* Type label */}
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {config.label}
-                      {device.type === 'cucm' && status === 'discovering' && ' · Discovering...'}
-                    </Typography>
+                    {/* Connection details */}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Cable sx={{ fontSize: 16, color: 'text.disabled' }} />
+                        <Typography variant="caption" color="text.secondary">
+                          Port {device.port}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Person sx={{ fontSize: 16, color: 'text.disabled' }} />
+                        <Typography variant="caption" color="text.secondary">
+                          {device.username}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Status message */}
+                    {status === 'discovering' && (
+                      <Chip
+                        size="small"
+                        label="Discovering nodes..."
+                        sx={{ mb: 2, bgcolor: alpha('#ff9800', 0.1), color: '#ed6c02' }}
+                      />
+                    )}
 
                     {/* CUCM discovered nodes as sub-cards */}
                     {device.type === 'cucm' && device.discoveredNodes && device.discoveredNodes.length > 0 && (
