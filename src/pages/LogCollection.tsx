@@ -683,13 +683,31 @@ export default function LogCollection() {
                       {device.host}
                     </Typography>
 
-                    {/* Type label */}
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {config.label}
-                      {device.type === 'cucm' && device.discoveredNodes &&
-                        ` · ${device.selectedNodes?.length || 0} nodes`
-                      }
-                    </Typography>
+                    {/* Type label + CUCM nodes */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" component="span">
+                        {config.label}
+                      </Typography>
+                      {device.type === 'cucm' && device.discoveredNodes && (
+                        <Typography
+                          variant="body2"
+                          component="span"
+                          onClick={() => setNodeSelectionDevice(device)}
+                          sx={{
+                            color: 'primary.main',
+                            cursor: 'pointer',
+                            '&:hover': { textDecoration: 'underline' },
+                          }}
+                        >
+                          {` · ${device.selectedNodes?.length || 0}/${device.discoveredNodes.length} nodes`}
+                        </Typography>
+                      )}
+                      {device.type === 'cucm' && status === 'discovering' && (
+                        <Typography variant="body2" component="span" color="text.secondary">
+                          {' · Discovering...'}
+                        </Typography>
+                      )}
+                    </Box>
 
                     {/* Status / Progress */}
                     {(status === 'running' || status === 'discovering') && (
