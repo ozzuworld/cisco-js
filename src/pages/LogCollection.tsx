@@ -31,9 +31,6 @@ import {
   ListItemText,
   Checkbox,
   Collapse,
-  Stepper,
-  Step,
-  StepLabel,
   alpha,
 } from '@mui/material'
 import {
@@ -57,8 +54,6 @@ import {
   Hub as ExpresswayIcon,
   DevicesOther,
   CloudDownload,
-  Person,
-  Cable,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { logService, jobService } from '@/services'
@@ -613,209 +608,101 @@ export default function LogCollection() {
         </Box>
       </Box>
 
-      {/* Workflow Stepper */}
-      <Paper
+      {/* Compact Workflow & Stats Bar */}
+      <Box
         sx={{
-          p: 3,
-          mb: 3,
-          background: theme => theme.palette.mode === 'dark'
-            ? 'linear-gradient(135deg, rgba(4,159,217,0.1) 0%, rgba(30,30,50,0.9) 100%)'
-            : 'linear-gradient(135deg, rgba(4,159,217,0.05) 0%, rgba(255,255,255,0.95) 100%)',
-          borderRadius: 3,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2,
+          mb: 2,
+          p: 1.5,
+          bgcolor: theme => alpha(theme.palette.primary.main, 0.04),
+          borderRadius: 2,
         }}
       >
-        <Stepper activeStep={getActiveStep()} alternativeLabel>
-          {workflowSteps.map((step, index) => (
-            <Step key={step.label} completed={index < getActiveStep()}>
-              <StepLabel
-                optional={
-                  <Typography variant="caption" color="text.secondary">
-                    {step.description}
-                  </Typography>
-                }
-              >
-                {step.label}
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-      </Paper>
-
-      {/* Stats Summary Bar */}
-      {devices.length > 0 && (
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 2,
-            mb: 3,
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Total devices */}
-          <Paper
-            sx={{
-              px: 3,
-              py: 2,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              borderRadius: 2,
-              flex: '1 1 auto',
-              minWidth: 140,
-            }}
-          >
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: 2,
-                bgcolor: theme => alpha(theme.palette.primary.main, 0.1),
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <DevicesOther sx={{ color: 'primary.main' }} />
-            </Box>
-            <Box>
-              <Typography variant="h5" fontWeight={700}>{devices.length}</Typography>
-              <Typography variant="caption" color="text.secondary">Total Devices</Typography>
-            </Box>
-          </Paper>
-
-          {/* Device type breakdown */}
-          {deviceCounts.cucm > 0 && (
-            <Paper
-              sx={{
-                px: 3,
-                py: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                borderRadius: 2,
-                borderLeft: '3px solid #1976d2',
-              }}
-            >
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
-                  bgcolor: alpha('#1976d2', 0.1),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CucmIcon sx={{ color: '#1976d2' }} />
+        {/* Mini Stepper */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {workflowSteps.map((step, index) => {
+            const isActive = index === getActiveStep()
+            const isCompleted = index < getActiveStep()
+            return (
+              <Box key={step.label} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Chip
+                  size="small"
+                  label={step.label}
+                  icon={isCompleted ? <CheckCircle sx={{ fontSize: 16 }} /> : undefined}
+                  sx={{
+                    height: 28,
+                    fontSize: '0.75rem',
+                    fontWeight: isActive ? 600 : 400,
+                    bgcolor: isCompleted ? 'success.main' : isActive ? 'primary.main' : 'transparent',
+                    color: isCompleted || isActive ? 'white' : 'text.secondary',
+                    border: !isCompleted && !isActive ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                    '& .MuiChip-icon': { color: 'white' },
+                  }}
+                />
+                {index < workflowSteps.length - 1 && (
+                  <Box
+                    sx={{
+                      width: 20,
+                      height: 2,
+                      bgcolor: isCompleted ? 'success.main' : 'divider',
+                      mx: 0.5,
+                    }}
+                  />
+                )}
               </Box>
-              <Box>
-                <Typography variant="h5" fontWeight={700}>{deviceCounts.cucm}</Typography>
-                <Typography variant="caption" color="text.secondary">CUCM</Typography>
-              </Box>
-            </Paper>
-          )}
-
-          {deviceCounts.cube > 0 && (
-            <Paper
-              sx={{
-                px: 3,
-                py: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                borderRadius: 2,
-                borderLeft: '3px solid #ed6c02',
-              }}
-            >
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
-                  bgcolor: alpha('#ed6c02', 0.1),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CubeIcon sx={{ color: '#ed6c02' }} />
-              </Box>
-              <Box>
-                <Typography variant="h5" fontWeight={700}>{deviceCounts.cube}</Typography>
-                <Typography variant="caption" color="text.secondary">CUBE</Typography>
-              </Box>
-            </Paper>
-          )}
-
-          {deviceCounts.expressway > 0 && (
-            <Paper
-              sx={{
-                px: 3,
-                py: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                borderRadius: 2,
-                borderLeft: '3px solid #9c27b0',
-              }}
-            >
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
-                  bgcolor: alpha('#9c27b0', 0.1),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <ExpresswayIcon sx={{ color: '#9c27b0' }} />
-              </Box>
-              <Box>
-                <Typography variant="h5" fontWeight={700}>{deviceCounts.expressway}</Typography>
-                <Typography variant="caption" color="text.secondary">Expressway</Typography>
-              </Box>
-            </Paper>
-          )}
-
-          {/* Ready for download indicator */}
-          {getDownloadableCount() > 0 && (
-            <Paper
-              sx={{
-                px: 3,
-                py: 2,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                borderRadius: 2,
-                bgcolor: theme => alpha(theme.palette.success.main, 0.1),
-                borderLeft: '3px solid',
-                borderLeftColor: 'success.main',
-              }}
-            >
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
-                  bgcolor: theme => alpha(theme.palette.success.main, 0.2),
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CloudDownload sx={{ color: 'success.main' }} />
-              </Box>
-              <Box>
-                <Typography variant="h5" fontWeight={700} color="success.main">{getDownloadableCount()}</Typography>
-                <Typography variant="caption" color="text.secondary">Ready</Typography>
-              </Box>
-            </Paper>
-          )}
+            )
+          })}
         </Box>
-      )}
+
+        {/* Compact Stats */}
+        {devices.length > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip
+              size="small"
+              icon={<DevicesOther sx={{ fontSize: 16 }} />}
+              label={`${devices.length} devices`}
+              sx={{ bgcolor: alpha('#1976d2', 0.1) }}
+            />
+            {deviceCounts.cucm > 0 && (
+              <Chip
+                size="small"
+                icon={<CucmIcon sx={{ fontSize: 16, color: '#1976d2' }} />}
+                label={deviceCounts.cucm}
+                sx={{ bgcolor: alpha('#1976d2', 0.1), minWidth: 50 }}
+              />
+            )}
+            {deviceCounts.cube > 0 && (
+              <Chip
+                size="small"
+                icon={<CubeIcon sx={{ fontSize: 16, color: '#ed6c02' }} />}
+                label={deviceCounts.cube}
+                sx={{ bgcolor: alpha('#ed6c02', 0.1), minWidth: 50 }}
+              />
+            )}
+            {deviceCounts.expressway > 0 && (
+              <Chip
+                size="small"
+                icon={<ExpresswayIcon sx={{ fontSize: 16, color: '#9c27b0' }} />}
+                label={deviceCounts.expressway}
+                sx={{ bgcolor: alpha('#9c27b0', 0.1), minWidth: 50 }}
+              />
+            )}
+            {getDownloadableCount() > 0 && (
+              <Chip
+                size="small"
+                icon={<CloudDownload sx={{ fontSize: 16 }} />}
+                label={`${getDownloadableCount()} ready`}
+                color="success"
+              />
+            )}
+          </Box>
+        )}
+      </Box>
 
       {/* No devices state */}
       {devices.length === 0 && (
@@ -862,142 +749,118 @@ export default function LogCollection() {
         </Paper>
       )}
 
-      {/* Device Cards */}
+      {/* Device Cards - Compact Grid */}
       {devices.length > 0 && (
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {devices.map(device => {
             const config = deviceTypeConfig[device.type]
             const progress = deviceProgress[device.id]
             const status = progress?.status || 'pending'
 
             return (
-              <Grid item xs={12} sm={6} md={4} key={device.id}>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={device.id}>
                 <Card
                   sx={{
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    borderRadius: 3,
+                    borderRadius: 2,
                     overflow: 'hidden',
-                    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-                    transition: 'all 0.25s ease',
+                    borderLeft: `3px solid ${config.color}`,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                    transition: 'all 0.2s ease',
                     '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: `0 12px 28px rgba(0,0,0,0.12), 0 0 0 1px ${config.color}20`,
+                      boxShadow: `0 4px 12px rgba(0,0,0,0.12)`,
                     },
                   }}
                 >
-                  {/* Colored header bar */}
+                  {/* Compact header */}
                   <Box
                     sx={{
-                      background: `linear-gradient(135deg, ${config.color} 0%, ${alpha(config.color, 0.8)} 100%)`,
-                      px: 3,
-                      py: 2,
+                      px: 2,
+                      py: 1,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: alpha(config.color, 0.05),
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      {React.cloneElement(config.icon, { sx: { fontSize: 24, color: 'white' } })}
-                      <Typography variant="subtitle1" fontWeight={600} sx={{ color: 'white' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {React.cloneElement(config.icon, { sx: { fontSize: 18, color: config.color } })}
+                      <Typography variant="caption" fontWeight={600} color={config.color}>
                         {config.label}
                       </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {/* Status indicator dot */}
+                      {/* Status dot */}
                       <Box
                         sx={{
-                          width: 10,
-                          height: 10,
+                          width: 8,
+                          height: 8,
                           borderRadius: '50%',
                           bgcolor: status === 'completed' ? '#4caf50' :
                                    status === 'failed' ? '#f44336' :
                                    status === 'running' || status === 'discovering' ? '#ff9800' :
-                                   'rgba(255,255,255,0.5)',
-                          boxShadow: status === 'running' || status === 'discovering'
-                            ? '0 0 8px rgba(255,152,0,0.8)'
-                            : 'none',
+                                   'grey.300',
                         }}
                       />
-                      <IconButton
-                        size="small"
-                        onClick={() => handleRemoveDevice(device.id)}
-                        disabled={isCollecting}
-                        sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' } }}
-                      >
-                        <Delete fontSize="small" />
-                      </IconButton>
                     </Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleRemoveDevice(device.id)}
+                      disabled={isCollecting}
+                      sx={{ p: 0.5 }}
+                    >
+                      <Delete sx={{ fontSize: 16 }} />
+                    </IconButton>
                   </Box>
 
-                  <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                  <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 1.5 }}>
                     {/* Host */}
-                    <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                       {device.host}
                     </Typography>
 
-                    {/* Connection details */}
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Cable sx={{ fontSize: 16, color: 'text.disabled' }} />
-                        <Typography variant="caption" color="text.secondary">
-                          Port {device.port}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Person sx={{ fontSize: 16, color: 'text.disabled' }} />
-                        <Typography variant="caption" color="text.secondary">
-                          {device.username}
-                        </Typography>
-                      </Box>
-                    </Box>
+                    {/* Connection details - inline */}
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                      :{device.port} · {device.username}
+                    </Typography>
 
                     {/* Status message */}
                     {status === 'discovering' && (
                       <Chip
                         size="small"
-                        label="Discovering nodes..."
-                        sx={{ mb: 2, bgcolor: alpha('#ff9800', 0.1), color: '#ed6c02' }}
+                        label="Discovering..."
+                        sx={{ height: 20, fontSize: '0.7rem', mb: 1, bgcolor: alpha('#ff9800', 0.1), color: '#ed6c02' }}
                       />
                     )}
 
-                    {/* CUCM discovered nodes as sub-cards */}
+                    {/* CUCM discovered nodes - compact list */}
                     {device.type === 'cucm' && device.discoveredNodes && device.discoveredNodes.length > 0 && (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1 }}>
                         {device.discoveredNodes.map(node => (
                           <Box
                             key={node.ip}
                             onClick={() => handleToggleNode(device.id, node.ip)}
                             sx={{
-                              p: 1.5,
-                              borderRadius: 2,
-                              bgcolor: device.selectedNodes?.includes(node.ip) ? 'primary.50' : 'grey.50',
-                              border: '1px solid',
-                              borderColor: device.selectedNodes?.includes(node.ip) ? 'primary.200' : 'grey.200',
+                              p: 0.75,
+                              borderRadius: 1,
+                              bgcolor: device.selectedNodes?.includes(node.ip) ? alpha('#1976d2', 0.1) : 'grey.50',
                               cursor: 'pointer',
-                              transition: 'all 0.15s',
-                              '&:hover': {
-                                borderColor: 'primary.main',
-                                bgcolor: 'primary.50',
-                              },
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              '&:hover': { bgcolor: alpha('#1976d2', 0.1) },
                             }}
                           >
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <Box>
-                                <Typography variant="body2" fontWeight={500}>
-                                  {node.host}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {node.ip} · {node.role}
-                                </Typography>
-                              </Box>
-                              <Checkbox
-                                size="small"
-                                checked={device.selectedNodes?.includes(node.ip) || false}
-                                sx={{ p: 0 }}
-                              />
-                            </Box>
+                            <Typography variant="caption" sx={{ fontWeight: device.selectedNodes?.includes(node.ip) ? 600 : 400 }}>
+                              {node.host} <span style={{ color: '#888' }}>({node.role})</span>
+                            </Typography>
+                            <Checkbox
+                              size="small"
+                              checked={device.selectedNodes?.includes(node.ip) || false}
+                              sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 16 } }}
+                            />
                           </Box>
                         ))}
                       </Box>
@@ -1008,45 +871,34 @@ export default function LogCollection() {
                       <LinearProgress
                         variant="determinate"
                         value={progress?.progress || 0}
-                        sx={{ height: 4, borderRadius: 2, bgcolor: 'grey.200' }}
+                        sx={{ height: 3, borderRadius: 1, bgcolor: 'grey.200' }}
                       />
                     )}
 
                     {status === 'completed' && progress?.downloadAvailable && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'success.main' }}>
-                        <CheckCircle sx={{ fontSize: 18 }} />
-                        <Typography variant="body2" fontWeight={500}>Ready</Typography>
-                      </Box>
+                      <Chip size="small" label="Ready" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
                     )}
 
                     {status === 'failed' && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'error.main' }}>
-                        <ErrorIcon sx={{ fontSize: 18 }} />
-                        <Typography variant="body2" fontWeight={500}>Failed</Typography>
-                      </Box>
+                      <Chip size="small" label="Failed" color="error" sx={{ height: 20, fontSize: '0.7rem' }} />
                     )}
 
                     {/* CUCM discover button */}
                     {device.type === 'cucm' && !device.discoveredNodes && status !== 'discovering' && (
-                      <Button
-                        size="small"
-                        variant="text"
-                        onClick={() => handleDiscoverNodes(device)}
-                        sx={{ mt: 1, ml: -1 }}
-                      >
-                        Discover Nodes
+                      <Button size="small" variant="text" onClick={() => handleDiscoverNodes(device)} sx={{ p: 0, minWidth: 0, fontSize: '0.75rem' }}>
+                        Discover
                       </Button>
                     )}
                   </CardContent>
 
-                  <CardActions sx={{ px: 3, pb: 2, pt: 0 }}>
+                  <CardActions sx={{ px: 1.5, pb: 1, pt: 0 }}>
                     <Button
                       size="small"
-                      startIcon={<Download />}
+                      startIcon={<Download sx={{ fontSize: 14 }} />}
                       onClick={() => handleDownloadDevice(device)}
                       disabled={!progress?.downloadAvailable}
                       variant={progress?.downloadAvailable ? 'contained' : 'text'}
-                      sx={{ ml: 'auto' }}
+                      sx={{ ml: 'auto', fontSize: '0.75rem', py: 0.25 }}
                     >
                       Download
                     </Button>
