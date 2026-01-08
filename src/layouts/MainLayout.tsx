@@ -14,8 +14,11 @@ import {
 } from '@mui/material'
 import {
   Menu as MenuIcon,
+  Home as HomeIcon,
   Dashboard as DashboardIcon,
   Work as WorkIcon,
+  Favorite as HealthIcon,
+  Wifi as CaptureIcon,
   Folder as FolderIcon,
   Settings as SettingsIcon,
 } from '@mui/icons-material'
@@ -27,8 +30,11 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+  { text: 'Home', icon: <HomeIcon />, path: '/' },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Jobs', icon: <WorkIcon />, path: '/jobs' },
+  { text: 'Health', icon: <HealthIcon />, path: '/health' },
+  { text: 'Captures', icon: <CaptureIcon />, path: '/captures' },
   { text: 'Profiles', icon: <FolderIcon />, path: '/profiles' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ]
