@@ -683,31 +683,52 @@ export default function LogCollection() {
                       {device.host}
                     </Typography>
 
-                    {/* Type label + CUCM nodes */}
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary" component="span">
-                        {config.label}
-                      </Typography>
-                      {device.type === 'cucm' && device.discoveredNodes && (
-                        <Typography
-                          variant="body2"
-                          component="span"
-                          onClick={() => setNodeSelectionDevice(device)}
-                          sx={{
-                            color: 'primary.main',
-                            cursor: 'pointer',
-                            '&:hover': { textDecoration: 'underline' },
-                          }}
-                        >
-                          {` · ${device.selectedNodes?.length || 0}/${device.discoveredNodes.length} nodes`}
-                        </Typography>
-                      )}
-                      {device.type === 'cucm' && status === 'discovering' && (
-                        <Typography variant="body2" component="span" color="text.secondary">
-                          {' · Discovering...'}
-                        </Typography>
-                      )}
-                    </Box>
+                    {/* Type label */}
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {config.label}
+                      {device.type === 'cucm' && status === 'discovering' && ' · Discovering...'}
+                    </Typography>
+
+                    {/* CUCM discovered nodes as sub-cards */}
+                    {device.type === 'cucm' && device.discoveredNodes && device.discoveredNodes.length > 0 && (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                        {device.discoveredNodes.map(node => (
+                          <Box
+                            key={node.ip}
+                            onClick={() => handleToggleNode(device.id, node.ip)}
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              bgcolor: device.selectedNodes?.includes(node.ip) ? 'primary.50' : 'grey.50',
+                              border: '1px solid',
+                              borderColor: device.selectedNodes?.includes(node.ip) ? 'primary.200' : 'grey.200',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s',
+                              '&:hover': {
+                                borderColor: 'primary.main',
+                                bgcolor: 'primary.50',
+                              },
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Box>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {node.host}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {node.ip} · {node.role}
+                                </Typography>
+                              </Box>
+                              <Checkbox
+                                size="small"
+                                checked={device.selectedNodes?.includes(node.ip) || false}
+                                sx={{ p: 0 }}
+                              />
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
 
                     {/* Status / Progress */}
                     {(status === 'running' || status === 'discovering') && (
