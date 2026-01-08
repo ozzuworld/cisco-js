@@ -769,75 +769,112 @@ export default function LogCollection() {
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    borderRadius: 2,
+                    borderRadius: 3,
                     overflow: 'hidden',
-                    borderLeft: `3px solid ${config.color}`,
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                    border: 'none',
+                    boxShadow: `0 2px 8px ${alpha(config.color, 0.15)}`,
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      transform: 'scale(1.02)',
-                      boxShadow: `0 6px 16px rgba(0,0,0,0.15)`,
+                      transform: 'translateY(-4px)',
+                      boxShadow: `0 8px 24px ${alpha(config.color, 0.25)}`,
                     },
                   }}
                 >
-                  {/* Compact header */}
+                  {/* Gradient header with floating icon */}
                   <Box
                     sx={{
                       px: 2,
-                      py: 1,
+                      py: 1.5,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      bgcolor: alpha(config.color, 0.05),
+                      background: `linear-gradient(135deg, ${alpha(config.color, 0.15)} 0%, ${alpha(config.color, 0.05)} 100%)`,
+                      borderBottom: `2px solid ${config.color}`,
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {React.cloneElement(config.icon, { sx: { fontSize: 18, color: config.color } })}
-                      <Typography variant="caption" fontWeight={600} color={config.color}>
-                        {config.label}
-                      </Typography>
-                      {/* Status dot */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Box
                         sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          bgcolor: status === 'completed' ? '#4caf50' :
-                                   status === 'failed' ? '#f44336' :
-                                   status === 'running' || status === 'discovering' ? '#ff9800' :
-                                   'grey.300',
-                          ...(status === 'running' || status === 'discovering' ? {
-                            animation: 'pulse 1.5s ease-in-out infinite',
-                            '@keyframes pulse': {
-                              '0%, 100%': { opacity: 1, transform: 'scale(1)' },
-                              '50%': { opacity: 0.5, transform: 'scale(1.3)' },
-                            },
-                          } : {}),
+                          width: 36,
+                          height: 36,
+                          borderRadius: 2,
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: `0 2px 8px ${alpha(config.color, 0.3)}`,
                         }}
-                      />
+                      >
+                        {React.cloneElement(config.icon, { sx: { fontSize: 20, color: config.color } })}
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" fontWeight={700} color={config.color} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          {config.label}
+                        </Typography>
+                        {/* Status indicator */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              bgcolor: status === 'completed' ? '#22c55e' :
+                                       status === 'failed' ? '#ef4444' :
+                                       status === 'running' || status === 'discovering' ? '#f59e0b' :
+                                       '#9ca3af',
+                              ...(status === 'running' || status === 'discovering' ? {
+                                animation: 'pulse 1.5s ease-in-out infinite',
+                                '@keyframes pulse': {
+                                  '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+                                  '50%': { opacity: 0.5, transform: 'scale(1.3)' },
+                                },
+                              } : {}),
+                            }}
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                            {status === 'completed' ? 'Ready' :
+                             status === 'failed' ? 'Failed' :
+                             status === 'running' ? 'Collecting' :
+                             status === 'discovering' ? 'Discovering' : 'Pending'}
+                          </Typography>
+                        </Box>
+                      </Box>
                     </Box>
                     <IconButton
                       size="small"
                       onClick={() => handleRemoveDevice(device.id)}
                       disabled={isCollecting}
-                      sx={{ p: 0.5 }}
+                      sx={{ p: 0.5, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
                     >
-                      <Delete sx={{ fontSize: 16 }} />
+                      <Delete sx={{ fontSize: 18 }} />
                     </IconButton>
                   </Box>
 
-                  <CardContent sx={{ flexGrow: 1, p: 1.5, pt: 1.5 }}>
+                  <CardContent sx={{ flexGrow: 1, p: 2 }}>
                     {/* Host */}
-                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 1.5, color: 'text.primary' }}>
                       {device.host}
                     </Typography>
 
-                    {/* Connection details - inline */}
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                      :{device.port} · {device.username}
-                    </Typography>
+                    {/* Connection details with icons */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>⚡</Typography>
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Port {device.port}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>👤</Typography>
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {device.username}
+                        </Typography>
+                      </Box>
+                    </Box>
 
                     {/* Status message */}
                     {status === 'discovering' && (
@@ -917,14 +954,24 @@ export default function LogCollection() {
                     )}
                   </CardContent>
 
-                  <CardActions sx={{ px: 1.5, pb: 1, pt: 0 }}>
+                  <CardActions sx={{ px: 2, pb: 1.5, pt: 0, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Button
                       size="small"
                       startIcon={<Download sx={{ fontSize: 14 }} />}
                       onClick={() => handleDownloadDevice(device)}
                       disabled={!progress?.downloadAvailable}
                       variant={progress?.downloadAvailable ? 'contained' : 'text'}
-                      sx={{ ml: 'auto', fontSize: '0.75rem', py: 0.25 }}
+                      sx={{
+                        ml: 'auto',
+                        fontSize: '0.75rem',
+                        ...(progress?.downloadAvailable ? {
+                          bgcolor: config.color,
+                          '&:hover': { bgcolor: config.color, filter: 'brightness(0.9)' },
+                        } : {
+                          color: config.color,
+                          '&:hover': { bgcolor: alpha(config.color, 0.08) },
+                        }),
+                      }}
                     >
                       Download
                     </Button>

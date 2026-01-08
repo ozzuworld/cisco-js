@@ -620,18 +620,96 @@ export default function CaptureSession() {
               </Box>
             </Box>
 
-            {/* Countdown Timer */}
+            {/* Animated Countdown Timer */}
             {session.status === 'capturing' && countdown && (
-              <Box sx={{ textAlign: 'right' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Timer color="primary" />
-                  <Typography variant="h4" sx={{ fontFamily: 'monospace' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                }}
+              >
+                {/* Circular Progress Ring */}
+                <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                  {/* Background ring */}
+                  <CircularProgress
+                    variant="determinate"
+                    value={100}
+                    size={80}
+                    thickness={3}
+                    sx={{ color: alpha(ACCENT_COLOR, 0.15) }}
+                  />
+                  {/* Progress ring */}
+                  <CircularProgress
+                    variant="determinate"
+                    value={(countdown.elapsed / duration) * 100}
+                    size={80}
+                    thickness={3}
+                    sx={{
+                      position: 'absolute',
+                      left: 0,
+                      color: ACCENT_COLOR,
+                      '& .MuiCircularProgress-circle': {
+                        strokeLinecap: 'round',
+                        transition: 'stroke-dashoffset 0.5s ease',
+                      },
+                    }}
+                  />
+                  {/* Center content */}
+                  <Box
+                    sx={{
+                      top: 0,
+                      left: 0,
+                      bottom: 0,
+                      right: 0,
+                      position: 'absolute',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <Timer sx={{ fontSize: 18, color: ACCENT_COLOR, mb: 0.25 }} />
+                    <Typography
+                      variant="caption"
+                      fontWeight={700}
+                      sx={{ color: ACCENT_COLOR, fontSize: '0.65rem' }}
+                    >
+                      {Math.round((countdown.elapsed / duration) * 100)}%
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Time display */}
+                <Box sx={{ textAlign: 'left' }}>
+                  <Typography
+                    variant="h3"
+                    sx={{
+                      fontFamily: 'monospace',
+                      fontWeight: 700,
+                      color: 'text.primary',
+                      lineHeight: 1,
+                    }}
+                  >
                     {formatTime(countdown.remaining)}
                   </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box
+                      sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        bgcolor: ACCENT_COLOR,
+                        animation: 'pulse 1.5s ease-in-out infinite',
+                        '@keyframes pulse': {
+                          '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+                          '50%': { opacity: 0.5, transform: 'scale(1.3)' },
+                        },
+                      }}
+                    />
+                    {formatTime(countdown.elapsed)} elapsed of {formatTime(duration)}
+                  </Typography>
                 </Box>
-                <Typography variant="caption" color="text.secondary">
-                  {formatTime(countdown.elapsed)} / {formatTime(duration)}
-                </Typography>
               </Box>
             )}
           </Box>
