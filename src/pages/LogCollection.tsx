@@ -48,17 +48,10 @@ import {
   FolderOpen,
   Close,
   ContentCopy,
+  Dns as CucmIcon,
+  Router as CubeIcon,
+  Hub as ExpresswayIcon,
 } from '@mui/icons-material'
-
-// Custom Cisco icons
-import cucmIcon from '@/assets/icons/cucm.png'
-import cubeIcon from '@/assets/icons/cube.png'
-import expresswayIcon from '@/assets/icons/expressway.png'
-
-// Icon component for custom images
-const DeviceIcon = ({ src, alt, size = 24 }: { src: string; alt: string; size?: number }) => (
-  <img src={src} alt={alt} style={{ width: size, height: size, objectFit: 'contain' }} />
-)
 import { useSnackbar } from 'notistack'
 import { logService, jobService } from '@/services'
 import type {
@@ -93,10 +86,10 @@ interface DeviceProgress {
   jobId?: string
 }
 
-const deviceTypeConfig: Record<DeviceType, { label: string; icon: string; color: string; defaultPort: number }> = {
-  cucm: { label: 'CUCM', icon: cucmIcon, color: '#1976d2', defaultPort: 22 },
-  cube: { label: 'CUBE', icon: cubeIcon, color: '#ed6c02', defaultPort: 22 },
-  expressway: { label: 'Expressway', icon: expresswayIcon, color: '#9c27b0', defaultPort: 443 },
+const deviceTypeConfig: Record<DeviceType, { label: string; icon: React.ReactElement; color: string; defaultPort: number }> = {
+  cucm: { label: 'CUCM', icon: <CucmIcon />, color: '#1976d2', defaultPort: 22 },
+  cube: { label: 'CUBE', icon: <CubeIcon />, color: '#ed6c02', defaultPort: 22 },
+  expressway: { label: 'Expressway', icon: <ExpresswayIcon />, color: '#9c27b0', defaultPort: 443 },
 }
 
 export default function LogCollection() {
@@ -673,10 +666,10 @@ export default function LogCollection() {
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
                       <Chip
-                        icon={<DeviceIcon src={config.icon} alt={config.label} size={20} />}
+                        icon={config.icon}
                         label={config.label}
                         size="small"
-                        sx={{ bgcolor: config.color, color: 'white', '& .MuiChip-icon': { ml: 0.5 } }}
+                        sx={{ bgcolor: config.color, color: 'white' }}
                       />
                       <IconButton
                         size="small"
@@ -860,17 +853,17 @@ export default function LogCollection() {
               >
                 <MenuItem value="cucm">
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <DeviceIcon src={cucmIcon} alt="CUCM" size={24} /> CUCM Cluster
+                    <CucmIcon /> CUCM Cluster
                   </Box>
                 </MenuItem>
                 <MenuItem value="cube">
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <DeviceIcon src={cubeIcon} alt="CUBE" size={24} /> CUBE / IOS-XE
+                    <CubeIcon /> CUBE / IOS-XE
                   </Box>
                 </MenuItem>
                 <MenuItem value="expressway">
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <DeviceIcon src={expresswayIcon} alt="Expressway" size={24} /> Expressway
+                    <ExpresswayIcon /> Expressway
                   </Box>
                 </MenuItem>
               </Select>
@@ -983,12 +976,11 @@ export default function LogCollection() {
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Chip
-                    icon={<DeviceIcon src={deviceTypeConfig[selectedDevice.type].icon} alt={deviceTypeConfig[selectedDevice.type].label} size={20} />}
+                    icon={deviceTypeConfig[selectedDevice.type].icon}
                     label={deviceTypeConfig[selectedDevice.type].label}
                     sx={{
                       bgcolor: deviceTypeConfig[selectedDevice.type].color,
                       color: 'white',
-                      '& .MuiChip-icon': { ml: 0.5 },
                     }}
                   />
                   <Typography variant="h6">{selectedDevice.host}</Typography>
