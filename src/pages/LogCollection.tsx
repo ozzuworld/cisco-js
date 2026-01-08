@@ -54,6 +54,8 @@ import {
   Hub as ExpresswayIcon,
   DevicesOther,
   CloudDownload,
+  Star,
+  Computer,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { logService, jobService } from '@/services'
@@ -846,34 +848,47 @@ export default function LogCollection() {
                       />
                     )}
 
-                    {/* CUCM discovered nodes - compact list */}
+                    {/* CUCM discovered nodes - chip-based layout */}
                     {device.type === 'cucm' && device.discoveredNodes && device.discoveredNodes.length > 0 && (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1 }}>
-                        {device.discoveredNodes.map(node => (
-                          <Box
-                            key={node.ip}
-                            onClick={() => handleToggleNode(device.id, node.ip)}
-                            sx={{
-                              p: 0.75,
-                              borderRadius: 1,
-                              bgcolor: device.selectedNodes?.includes(node.ip) ? alpha('#1976d2', 0.1) : 'grey.50',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              '&:hover': { bgcolor: alpha('#1976d2', 0.1) },
-                            }}
-                          >
-                            <Typography variant="caption" sx={{ fontWeight: device.selectedNodes?.includes(node.ip) ? 600 : 400 }}>
-                              {node.host} <span style={{ color: '#888' }}>({node.role})</span>
-                            </Typography>
-                            <Checkbox
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                        {device.discoveredNodes.map(node => {
+                          const isSelected = device.selectedNodes?.includes(node.ip) || false
+                          const isPublisher = node.role?.toLowerCase() === 'publisher'
+                          return (
+                            <Chip
+                              key={node.ip}
                               size="small"
-                              checked={device.selectedNodes?.includes(node.ip) || false}
-                              sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 16 } }}
+                              icon={isPublisher ? <Star sx={{ fontSize: 14 }} /> : <Computer sx={{ fontSize: 14 }} />}
+                              label={node.host}
+                              onClick={() => handleToggleNode(device.id, node.ip)}
+                              onDelete={isSelected ? () => handleToggleNode(device.id, node.ip) : undefined}
+                              deleteIcon={isSelected ? <CheckCircle sx={{ fontSize: 14 }} /> : undefined}
+                              sx={{
+                                height: 26,
+                                fontSize: '0.7rem',
+                                fontWeight: isSelected ? 600 : 400,
+                                bgcolor: isSelected
+                                  ? isPublisher ? alpha('#ff9800', 0.15) : alpha('#1976d2', 0.12)
+                                  : 'transparent',
+                                border: '1px solid',
+                                borderColor: isSelected
+                                  ? isPublisher ? '#ff9800' : '#1976d2'
+                                  : 'divider',
+                                color: isSelected ? 'text.primary' : 'text.secondary',
+                                '& .MuiChip-icon': {
+                                  color: isPublisher ? '#ff9800' : isSelected ? '#1976d2' : 'text.disabled',
+                                },
+                                '& .MuiChip-deleteIcon': {
+                                  color: '#4caf50',
+                                  '&:hover': { color: '#388e3c' },
+                                },
+                                '&:hover': {
+                                  bgcolor: isPublisher ? alpha('#ff9800', 0.1) : alpha('#1976d2', 0.08),
+                                },
+                              }}
                             />
-                          </Box>
-                        ))}
+                          )
+                        })}
                       </Box>
                     )}
 
