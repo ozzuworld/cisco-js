@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import JSZip from 'jszip'
 import {
@@ -524,16 +524,6 @@ export default function LogCollection() {
     }
   }
 
-  const getStatusColor = (status: DeviceProgress['status']) => {
-    switch (status) {
-      case 'completed': return '#22c55e'
-      case 'failed': return '#ef4444'
-      case 'running':
-      case 'discovering': return '#3b82f6'
-      default: return '#6b7280'
-    }
-  }
-
   const copyToClipboard = async (data: unknown, label: string) => {
     try {
       await navigator.clipboard.writeText(JSON.stringify(data, null, 2))
@@ -644,7 +634,6 @@ export default function LogCollection() {
           {devices.map(device => {
             const config = deviceTypeConfig[device.type]
             const progress = deviceProgress[device.id]
-            const hasProgress = !!progress
             const status = progress?.status || 'pending'
 
             return (
@@ -654,121 +643,98 @@ export default function LogCollection() {
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    borderLeft: 4,
-                    borderColor: hasProgress ? getStatusColor(status) : 'grey.300',
+                    borderRadius: 3,
                     transition: 'transform 0.2s, box-shadow 0.2s',
                     '&:hover': {
                       transform: 'translateY(-2px)',
-                      boxShadow: 4,
+                      boxShadow: 6,
                     },
                   }}
                 >
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                      <Chip
-                        icon={config.icon}
-                        label={config.label}
-                        size="small"
-                        sx={{ bgcolor: config.color, color: 'white' }}
-                      />
+                  <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                    {/* Header with icon and delete */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                      <Box
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 2,
+                          bgcolor: config.color,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                        }}
+                      >
+                        {React.cloneElement(config.icon, { sx: { fontSize: 28 } })}
+                      </Box>
                       <IconButton
                         size="small"
                         onClick={() => handleRemoveDevice(device.id)}
                         disabled={isCollecting}
+                        sx={{ color: 'text.disabled' }}
                       >
                         <Delete fontSize="small" />
                       </IconButton>
                     </Box>
 
-                    <Typography variant="h6" gutterBottom>
+                    {/* Host */}
+                    <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 600 }}>
                       {device.host}
                     </Typography>
 
-                    {/* CUCM node info */}
-                    {device.type === 'cucm' && (
-                      <Box sx={{ mb: 2 }}>
-                        {device.discoveredNodes ? (
-                          <Chip
-                            label={`${device.selectedNodes?.length || 0}/${device.discoveredNodes.length} nodes`}
-                            size="small"
-                            variant="outlined"
-                            onClick={() => setNodeSelectionDevice(device)}
-                            sx={{ cursor: 'pointer' }}
-                          />
-                        ) : status === 'discovering' ? (
-                          <Chip label="Discovering..." size="small" icon={<CircularProgress size={14} />} />
-                        ) : (
-                          <Button size="small" onClick={() => handleDiscoverNodes(device)}>
-                            Discover Nodes
-                          </Button>
-                        )}
+                    {/* Type label */}
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {config.label}
+                      {device.type === 'cucm' && device.discoveredNodes &&
+                        ` · ${device.selectedNodes?.length || 0} nodes`
+                      }
+                    </Typography>
+
+                    {/* Status / Progress */}
+                    {(status === 'running' || status === 'discovering') && (
+                      <LinearProgress
+                        variant="determinate"
+                        value={progress?.progress || 0}
+                        sx={{ height: 4, borderRadius: 2, bgcolor: 'grey.200' }}
+                      />
+                    )}
+
+                    {status === 'completed' && progress?.downloadAvailable && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'success.main' }}>
+                        <CheckCircle sx={{ fontSize: 18 }} />
+                        <Typography variant="body2" fontWeight={500}>Ready</Typography>
                       </Box>
                     )}
 
-                    {/* Status display */}
-                    {hasProgress && (
-                      <>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          {getStatusIcon(status, 20)}
-                          <Typography
-                            variant="body2"
-                            fontWeight="medium"
-                            sx={{ color: getStatusColor(status) }}
-                          >
-                            {status === 'running' ? 'Collecting...' :
-                             status === 'discovering' ? 'Discovering...' :
-                             status === 'completed' ? 'Complete' :
-                             status === 'failed' ? 'Failed' : 'Ready'}
-                          </Typography>
-                        </Box>
-
-                        {progress.message && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            {progress.message}
-                          </Typography>
-                        )}
-
-                        {(status === 'running' || status === 'discovering') && (
-                          <LinearProgress
-                            variant="determinate"
-                            value={progress.progress}
-                            sx={{ height: 6, borderRadius: 3 }}
-                          />
-                        )}
-
-                        {status === 'completed' && progress.downloadAvailable && (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                            <Chip
-                              label="Ready"
-                              size="small"
-                              icon={<CheckCircle fontSize="small" />}
-                              color="success"
-                              variant="outlined"
-                            />
-                          </Box>
-                        )}
-                      </>
+                    {status === 'failed' && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'error.main' }}>
+                        <ErrorIcon sx={{ fontSize: 18 }} />
+                        <Typography variant="body2" fontWeight={500}>Failed</Typography>
+                      </Box>
                     )}
 
-                    {!hasProgress && device.type !== 'cucm' && (
-                      <Typography variant="body2" color="text.secondary">
-                        Ready to collect
-                      </Typography>
+                    {/* CUCM discover button */}
+                    {device.type === 'cucm' && !device.discoveredNodes && status !== 'discovering' && (
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={() => handleDiscoverNodes(device)}
+                        sx={{ mt: 1, ml: -1 }}
+                      >
+                        Discover Nodes
+                      </Button>
                     )}
                   </CardContent>
 
-                  <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
-                    <Button
-                      size="small"
-                      onClick={() => setSelectedDevice(device)}
-                    >
-                      View Details
-                    </Button>
+                  <CardActions sx={{ px: 3, pb: 2, pt: 0 }}>
                     <Button
                       size="small"
                       startIcon={<Download />}
                       onClick={() => handleDownloadDevice(device)}
                       disabled={!progress?.downloadAvailable}
+                      variant={progress?.downloadAvailable ? 'contained' : 'text'}
+                      sx={{ ml: 'auto' }}
                     >
                       Download
                     </Button>
