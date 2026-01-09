@@ -940,6 +940,17 @@ export default function Health() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   border: `2px solid ${getStatusColor(healthResult.overall_status)}`,
+                  ...(healthResult.overall_status !== 'healthy' ? {
+                    animation: 'statusPulse 2s ease-in-out infinite',
+                    '@keyframes statusPulse': {
+                      '0%, 100%': {
+                        boxShadow: `0 0 0 0 ${alpha(getStatusColor(healthResult.overall_status), 0.4)}`,
+                      },
+                      '50%': {
+                        boxShadow: `0 0 0 8px ${alpha(getStatusColor(healthResult.overall_status), 0)}`,
+                      },
+                    },
+                  } : {}),
                 }}
               >
                 {getStatusIcon(healthResult.overall_status, 32)}
@@ -989,6 +1000,7 @@ export default function Health() {
                   borderColor: 'divider',
                 }}
               >
+                <DevicesOther sx={{ fontSize: 24, color: 'text.secondary', mb: 0.5 }} />
                 <Typography variant="h3" fontWeight={700} color="text.primary">
                   {healthResult.total_devices}
                 </Typography>
@@ -1007,6 +1019,7 @@ export default function Health() {
                   border: `1px solid ${alpha('#22c55e', 0.3)}`,
                 }}
               >
+                <CheckCircle sx={{ fontSize: 24, color: '#22c55e', mb: 0.5 }} />
                 <Typography variant="h3" fontWeight={700} sx={{ color: '#22c55e' }}>
                   {healthResult.healthy_devices}
                 </Typography>
@@ -1025,6 +1038,7 @@ export default function Health() {
                   border: `1px solid ${alpha('#eab308', 0.3)}`,
                 }}
               >
+                <Warning sx={{ fontSize: 24, color: '#eab308', mb: 0.5 }} />
                 <Typography variant="h3" fontWeight={700} sx={{ color: '#eab308' }}>
                   {healthResult.degraded_devices}
                 </Typography>
@@ -1043,8 +1057,9 @@ export default function Health() {
                   border: `1px solid ${alpha('#ef4444', 0.3)}`,
                 }}
               >
+                <ErrorIcon sx={{ fontSize: 24, color: '#ef4444', mb: 0.5 }} />
                 <Typography variant="h3" fontWeight={700} sx={{ color: '#ef4444' }}>
-                  {healthResult.critical_devices + healthResult.unknown_devices}
+                  {(healthResult.critical_devices || 0) + (healthResult.unknown_devices || 0)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" fontWeight={500}>
                   Critical/Unknown
@@ -1173,10 +1188,11 @@ export default function Health() {
                                 sx={{
                                   height: 24,
                                   fontSize: '0.7rem',
-                                  bgcolor: ok ? alpha('#22c55e', 0.1) : alpha('#eab308', 0.1),
-                                  color: ok ? '#22c55e' : '#eab308',
-                                  border: `1px solid ${ok ? alpha('#22c55e', 0.3) : alpha('#eab308', 0.3)}`,
-                                  '& .MuiChip-icon': { color: ok ? '#22c55e' : '#eab308' },
+                                  fontWeight: ok ? 400 : 600,
+                                  bgcolor: ok ? alpha('#22c55e', 0.1) : '#eab308',
+                                  color: ok ? '#22c55e' : 'white',
+                                  border: ok ? `1px solid ${alpha('#22c55e', 0.3)}` : 'none',
+                                  '& .MuiChip-icon': { color: ok ? '#22c55e' : 'white' },
                                 }}
                               />
                             ))}
