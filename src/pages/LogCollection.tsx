@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import JSZip from 'jszip'
 import {
@@ -31,11 +31,9 @@ import {
   ListItemText,
   Checkbox,
   Collapse,
+  alpha,
 } from '@mui/material'
 import {
-  Phone as CucmIcon,
-  Router as CubeIcon,
-  Link as ExpresswayIcon,
   Visibility,
   VisibilityOff,
   ArrowBack,
@@ -51,6 +49,13 @@ import {
   FolderOpen,
   Close,
   ContentCopy,
+  Dns as CucmIcon,
+  Router as CubeIcon,
+  Hub as ExpresswayIcon,
+  DevicesOther,
+  CloudDownload,
+  Star,
+  Computer,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { logService, jobService } from '@/services'
@@ -133,6 +138,9 @@ export default function LogCollection() {
   // Bundle state
   const [isBundling, setIsBundling] = useState(false)
   const [bundleProgress, setBundleProgress] = useState(0)
+
+  // Profiles section collapsed state
+  const [profilesExpanded, setProfilesExpanded] = useState(true)
 
   // Fallback profiles
   const fallbackCubeProfiles: DeviceProfile[] = [
@@ -524,16 +532,6 @@ export default function LogCollection() {
     }
   }
 
-  const getStatusColor = (status: DeviceProgress['status']) => {
-    switch (status) {
-      case 'completed': return '#22c55e'
-      case 'failed': return '#ef4444'
-      case 'running':
-      case 'discovering': return '#3b82f6'
-      default: return '#6b7280'
-    }
-  }
-
   const copyToClipboard = async (data: unknown, label: string) => {
     try {
       await navigator.clipboard.writeText(JSON.stringify(data, null, 2))
@@ -551,6 +549,28 @@ export default function LogCollection() {
     return devices.filter(d => deviceProgress[d.id]?.downloadAvailable).length
   }
 
+  // Workflow step calculation
+  const getActiveStep = () => {
+    if (collectionComplete) return 3
+    if (isCollecting) return 2
+    if (devices.length > 0) return 1
+    return 0
+  }
+
+  const workflowSteps = [
+    { label: 'Add Devices', description: 'Add CUCM, CUBE, or Expressway' },
+    { label: 'Configure', description: 'Select nodes and profiles' },
+    { label: 'Collect', description: 'Gather logs from devices' },
+    { label: 'Download', description: 'Get your log bundle' },
+  ]
+
+  // Device counts by type
+  const deviceCounts = {
+    cucm: devices.filter(d => d.type === 'cucm').length,
+    cube: devices.filter(d => d.type === 'cube').length,
+    expressway: devices.filter(d => d.type === 'expressway').length,
+  }
+
   return (
     <Box>
       {/* Header */}
@@ -559,14 +579,7 @@ export default function LogCollection() {
           <IconButton onClick={() => navigate('/')}>
             <ArrowBack />
           </IconButton>
-          <Box>
-            <Typography variant="h4" gutterBottom>
-              Log Collection
-            </Typography>
-            <Typography color="text.secondary">
-              Collect logs from CUCM, CUBE, and Expressway devices
-            </Typography>
-          </Box>
+          <Typography variant="h5" fontWeight={600}>Log Collection</Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Button
@@ -600,22 +613,116 @@ export default function LogCollection() {
         </Box>
       </Box>
 
+      {/* Compact Workflow & Stats Bar */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2,
+          mb: 2,
+          p: 1.5,
+          bgcolor: theme => alpha(theme.palette.primary.main, 0.04),
+          borderRadius: 2,
+        }}
+      >
+        {/* Mini Stepper */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {workflowSteps.map((step, index) => {
+            const isActive = index === getActiveStep()
+            const isCompleted = index < getActiveStep()
+            return (
+              <Box key={step.label} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Chip
+                  size="small"
+                  label={step.label}
+                  icon={isCompleted ? <CheckCircle sx={{ fontSize: 16 }} /> : undefined}
+                  sx={{
+                    height: 28,
+                    fontSize: '0.75rem',
+                    fontWeight: isActive ? 600 : 400,
+                    bgcolor: isCompleted ? 'success.main' : isActive ? 'primary.main' : 'transparent',
+                    color: isCompleted || isActive ? 'white' : 'text.secondary',
+                    border: !isCompleted && !isActive ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                    '& .MuiChip-icon': { color: 'white' },
+                  }}
+                />
+                {index < workflowSteps.length - 1 && (
+                  <Box
+                    sx={{
+                      width: 20,
+                      height: 2,
+                      bgcolor: isCompleted ? 'success.main' : 'divider',
+                      mx: 0.5,
+                    }}
+                  />
+                )}
+              </Box>
+            )
+          })}
+        </Box>
+
+        {/* Compact Stats */}
+        {devices.length > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip
+              size="small"
+              icon={<DevicesOther sx={{ fontSize: 16 }} />}
+              label={`${devices.length} devices`}
+              sx={{ bgcolor: alpha('#1976d2', 0.1) }}
+            />
+            {deviceCounts.cucm > 0 && (
+              <Chip
+                size="small"
+                icon={<CucmIcon sx={{ fontSize: 16, color: '#1976d2' }} />}
+                label={deviceCounts.cucm}
+                sx={{ bgcolor: alpha('#1976d2', 0.1), minWidth: 50 }}
+              />
+            )}
+            {deviceCounts.cube > 0 && (
+              <Chip
+                size="small"
+                icon={<CubeIcon sx={{ fontSize: 16, color: '#ed6c02' }} />}
+                label={deviceCounts.cube}
+                sx={{ bgcolor: alpha('#ed6c02', 0.1), minWidth: 50 }}
+              />
+            )}
+            {deviceCounts.expressway > 0 && (
+              <Chip
+                size="small"
+                icon={<ExpresswayIcon sx={{ fontSize: 16, color: '#9c27b0' }} />}
+                label={deviceCounts.expressway}
+                sx={{ bgcolor: alpha('#9c27b0', 0.1), minWidth: 50 }}
+              />
+            )}
+            {getDownloadableCount() > 0 && (
+              <Chip
+                size="small"
+                icon={<CloudDownload sx={{ fontSize: 16 }} />}
+                label={`${getDownloadableCount()} ready`}
+                color="success"
+              />
+            )}
+          </Box>
+        )}
+      </Box>
+
       {/* No devices state */}
       {devices.length === 0 && (
         <Paper sx={{ p: 6, textAlign: 'center' }}>
-          <FolderOpen sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-          <Typography variant="h5" color="text.secondary" gutterBottom>
-            No Devices Configured
-          </Typography>
-          <Typography color="text.secondary" sx={{ mb: 3 }}>
-            Add devices to collect logs from CUCM clusters, CUBE, and Expressway
+          <FolderOpen sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No Devices
           </Typography>
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={() => setShowAddDevice(true)}
+            sx={{ mt: 2 }}
           >
-            Add Your First Device
+            Add Device
           </Button>
         </Paper>
       )}
@@ -647,137 +754,224 @@ export default function LogCollection() {
         </Paper>
       )}
 
-      {/* Device Cards */}
+      {/* Device Cards - Compact Grid */}
       {devices.length > 0 && (
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {devices.map(device => {
             const config = deviceTypeConfig[device.type]
             const progress = deviceProgress[device.id]
-            const hasProgress = !!progress
             const status = progress?.status || 'pending'
 
             return (
-              <Grid item xs={12} sm={6} md={4} key={device.id}>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={device.id}>
                 <Card
                   sx={{
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    borderLeft: 4,
-                    borderColor: hasProgress ? getStatusColor(status) : 'grey.300',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    border: 'none',
+                    boxShadow: `0 2px 8px ${alpha(config.color, 0.15)}`,
+                    transition: 'all 0.2s ease',
                     '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: 4,
+                      transform: 'translateY(-4px)',
+                      boxShadow: `0 8px 24px ${alpha(config.color, 0.25)}`,
                     },
                   }}
                 >
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                      <Chip
-                        icon={config.icon}
-                        label={config.label}
-                        size="small"
-                        sx={{ bgcolor: config.color, color: 'white' }}
-                      />
-                      <IconButton
-                        size="small"
-                        onClick={() => handleRemoveDevice(device.id)}
-                        disabled={isCollecting}
+                  {/* Gradient header with floating icon */}
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: `linear-gradient(135deg, ${alpha(config.color, 0.15)} 0%, ${alpha(config.color, 0.05)} 100%)`,
+                      borderBottom: `2px solid ${config.color}`,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 2,
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: `0 2px 8px ${alpha(config.color, 0.3)}`,
+                        }}
                       >
-                        <Delete fontSize="small" />
-                      </IconButton>
+                        {React.cloneElement(config.icon, { sx: { fontSize: 20, color: config.color } })}
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" fontWeight={700} color={config.color} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          {config.label}
+                        </Typography>
+                        {/* Status indicator */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              bgcolor: status === 'completed' ? '#22c55e' :
+                                       status === 'failed' ? '#ef4444' :
+                                       status === 'running' || status === 'discovering' ? '#f59e0b' :
+                                       '#9ca3af',
+                              ...(status === 'running' || status === 'discovering' ? {
+                                animation: 'pulse 1.5s ease-in-out infinite',
+                                '@keyframes pulse': {
+                                  '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+                                  '50%': { opacity: 0.5, transform: 'scale(1.3)' },
+                                },
+                              } : {}),
+                            }}
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                            {status === 'completed' ? 'Ready' :
+                             status === 'failed' ? 'Failed' :
+                             status === 'running' ? 'Collecting' :
+                             status === 'discovering' ? 'Discovering' : 'Pending'}
+                          </Typography>
+                        </Box>
+                      </Box>
                     </Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleRemoveDevice(device.id)}
+                      disabled={isCollecting}
+                      sx={{ p: 0.5, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                    >
+                      <Delete sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Box>
 
-                    <Typography variant="h6" gutterBottom>
+                  <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                    {/* Host */}
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 1.5, color: 'text.primary' }}>
                       {device.host}
                     </Typography>
 
-                    {/* CUCM node info */}
-                    {device.type === 'cucm' && (
-                      <Box sx={{ mb: 2 }}>
-                        {device.discoveredNodes ? (
-                          <Chip
-                            label={`${device.selectedNodes?.length || 0}/${device.discoveredNodes.length} nodes`}
-                            size="small"
-                            variant="outlined"
-                            onClick={() => setNodeSelectionDevice(device)}
-                            sx={{ cursor: 'pointer' }}
-                          />
-                        ) : status === 'discovering' ? (
-                          <Chip label="Discovering..." size="small" icon={<CircularProgress size={14} />} />
-                        ) : (
-                          <Button size="small" onClick={() => handleDiscoverNodes(device)}>
-                            Discover Nodes
-                          </Button>
-                        )}
+                    {/* Connection details with icons */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>⚡</Typography>
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Port {device.port}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>👤</Typography>
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {device.username}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Status message */}
+                    {status === 'discovering' && (
+                      <Chip
+                        size="small"
+                        label="Discovering..."
+                        sx={{ height: 20, fontSize: '0.7rem', mb: 1, bgcolor: alpha('#ff9800', 0.1), color: '#ed6c02' }}
+                      />
+                    )}
+
+                    {/* CUCM discovered nodes - chip-based layout */}
+                    {device.type === 'cucm' && device.discoveredNodes && device.discoveredNodes.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                        {device.discoveredNodes.map(node => {
+                          const isSelected = device.selectedNodes?.includes(node.ip) || false
+                          const isPublisher = node.role?.toLowerCase() === 'publisher'
+                          return (
+                            <Chip
+                              key={node.ip}
+                              size="small"
+                              icon={isPublisher ? <Star sx={{ fontSize: 14 }} /> : <Computer sx={{ fontSize: 14 }} />}
+                              label={node.host}
+                              onClick={() => handleToggleNode(device.id, node.ip)}
+                              onDelete={isSelected ? () => handleToggleNode(device.id, node.ip) : undefined}
+                              deleteIcon={isSelected ? <CheckCircle sx={{ fontSize: 14 }} /> : undefined}
+                              sx={{
+                                height: 26,
+                                fontSize: '0.7rem',
+                                fontWeight: isSelected ? 600 : 400,
+                                bgcolor: isSelected
+                                  ? isPublisher ? alpha('#ff9800', 0.15) : alpha('#1976d2', 0.12)
+                                  : 'transparent',
+                                border: '1px solid',
+                                borderColor: isSelected
+                                  ? isPublisher ? '#ff9800' : '#1976d2'
+                                  : 'divider',
+                                color: isSelected ? 'text.primary' : 'text.secondary',
+                                '& .MuiChip-icon': {
+                                  color: isPublisher ? '#ff9800' : isSelected ? '#1976d2' : 'text.disabled',
+                                },
+                                '& .MuiChip-deleteIcon': {
+                                  color: '#4caf50',
+                                  '&:hover': { color: '#388e3c' },
+                                },
+                                '&:hover': {
+                                  bgcolor: isPublisher ? alpha('#ff9800', 0.1) : alpha('#1976d2', 0.08),
+                                },
+                              }}
+                            />
+                          )
+                        })}
                       </Box>
                     )}
 
-                    {/* Status display */}
-                    {hasProgress && (
-                      <>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          {getStatusIcon(status, 20)}
-                          <Typography
-                            variant="body2"
-                            fontWeight="medium"
-                            sx={{ color: getStatusColor(status) }}
-                          >
-                            {status === 'running' ? 'Collecting...' :
-                             status === 'discovering' ? 'Discovering...' :
-                             status === 'completed' ? 'Complete' :
-                             status === 'failed' ? 'Failed' : 'Ready'}
-                          </Typography>
-                        </Box>
-
-                        {progress.message && (
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            {progress.message}
-                          </Typography>
-                        )}
-
-                        {(status === 'running' || status === 'discovering') && (
-                          <LinearProgress
-                            variant="determinate"
-                            value={progress.progress}
-                            sx={{ height: 6, borderRadius: 3 }}
-                          />
-                        )}
-
-                        {status === 'completed' && progress.downloadAvailable && (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                            <Chip
-                              label="Ready"
-                              size="small"
-                              icon={<CheckCircle fontSize="small" />}
-                              color="success"
-                              variant="outlined"
-                            />
-                          </Box>
-                        )}
-                      </>
+                    {/* Status / Progress */}
+                    {(status === 'running' || status === 'discovering') && (
+                      <LinearProgress
+                        variant="determinate"
+                        value={progress?.progress || 0}
+                        sx={{ height: 3, borderRadius: 1, bgcolor: 'grey.200' }}
+                      />
                     )}
 
-                    {!hasProgress && device.type !== 'cucm' && (
-                      <Typography variant="body2" color="text.secondary">
-                        Ready to collect
-                      </Typography>
+                    {status === 'completed' && progress?.downloadAvailable && (
+                      <Chip size="small" label="Ready" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
+                    )}
+
+                    {status === 'failed' && (
+                      <Chip size="small" label="Failed" color="error" sx={{ height: 20, fontSize: '0.7rem' }} />
+                    )}
+
+                    {/* CUCM discover button */}
+                    {device.type === 'cucm' && !device.discoveredNodes && status !== 'discovering' && (
+                      <Button size="small" variant="text" onClick={() => handleDiscoverNodes(device)} sx={{ p: 0, minWidth: 0, fontSize: '0.75rem' }}>
+                        Discover
+                      </Button>
                     )}
                   </CardContent>
 
-                  <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
+                  <CardActions sx={{ px: 2, pb: 1.5, pt: 0, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Button
                       size="small"
-                      onClick={() => setSelectedDevice(device)}
-                    >
-                      View Details
-                    </Button>
-                    <Button
-                      size="small"
-                      startIcon={<Download />}
+                      startIcon={<Download sx={{ fontSize: 14 }} />}
                       onClick={() => handleDownloadDevice(device)}
                       disabled={!progress?.downloadAvailable}
+                      variant={progress?.downloadAvailable ? 'contained' : 'text'}
+                      sx={{
+                        ml: 'auto',
+                        fontSize: '0.75rem',
+                        ...(progress?.downloadAvailable ? {
+                          bgcolor: config.color,
+                          '&:hover': { bgcolor: config.color, filter: 'brightness(0.9)' },
+                        } : {
+                          color: config.color,
+                          '&:hover': { bgcolor: alpha(config.color, 0.08) },
+                        }),
+                      }}
                     >
                       Download
                     </Button>
@@ -791,60 +985,140 @@ export default function LogCollection() {
 
       {/* Collection Profiles - show before collection starts */}
       {devices.length > 0 && !isCollecting && !collectionComplete && (
-        <Paper sx={{ p: 3, mt: 3 }}>
-          <Typography variant="h6" gutterBottom>Collection Profiles</Typography>
-          <Divider sx={{ my: 2 }} />
-          <Grid container spacing={3}>
+        <Paper
+          sx={{
+            p: 2,
+            mt: 3,
+            background: theme => theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, rgba(30,30,50,0.9) 0%, rgba(40,40,60,0.9) 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
+            border: theme => `1px solid ${theme.palette.divider}`,
+            borderRadius: 3,
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              '&:hover': { opacity: 0.8 },
+            }}
+            onClick={() => setProfilesExpanded(!profilesExpanded)}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 8,
+                  height: 28,
+                  borderRadius: 1,
+                  bgcolor: 'primary.main',
+                }}
+              />
+              <Typography variant="h6" fontWeight={600}>Collection Profiles</Typography>
+            </Box>
+            <IconButton size="small">
+              {profilesExpanded ? <ExpandLess /> : <ExpandMore />}
+            </IconButton>
+          </Box>
+          <Collapse in={profilesExpanded}>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, mb: 2, ml: 3 }}>
+              Select the log collection profile for each device type
+            </Typography>
+            <Grid container spacing={3}>
             {devices.some(d => d.type === 'cucm') && (
               <Grid item xs={12} md={4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>CUCM Profile</InputLabel>
-                  <Select
-                    value={selectedCucmProfile}
-                    label="CUCM Profile"
-                    onChange={e => setSelectedCucmProfile(e.target.value)}
-                  >
-                    <MenuItem value="callmanager_full">CallManager Full Bundle</MenuItem>
-                    {cucmProfiles.map(p => (
-                      <MenuItem key={p.name} value={p.name}>{p.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(25,118,210,0.1)' : 'rgba(25,118,210,0.05)',
+                    border: '1px solid',
+                    borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(25,118,210,0.3)' : 'rgba(25,118,210,0.2)',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <CucmIcon sx={{ color: '#1976d2', fontSize: 20 }} />
+                    <Typography variant="subtitle2" fontWeight={600}>CUCM</Typography>
+                  </Box>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Profile</InputLabel>
+                    <Select
+                      value={selectedCucmProfile}
+                      label="Profile"
+                      onChange={e => setSelectedCucmProfile(e.target.value)}
+                    >
+                      <MenuItem value="callmanager_full">CallManager Full Bundle</MenuItem>
+                      {cucmProfiles.map(p => (
+                        <MenuItem key={p.name} value={p.name}>{p.name}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
               </Grid>
             )}
             {devices.some(d => d.type === 'cube') && (
               <Grid item xs={12} md={4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>CUBE Profile</InputLabel>
-                  <Select
-                    value={selectedCubeProfile}
-                    label="CUBE Profile"
-                    onChange={e => setSelectedCubeProfile(e.target.value)}
-                  >
-                    {cubeProfiles.map(p => (
-                      <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(237,108,2,0.1)' : 'rgba(237,108,2,0.05)',
+                    border: '1px solid',
+                    borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(237,108,2,0.3)' : 'rgba(237,108,2,0.2)',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <CubeIcon sx={{ color: '#ed6c02', fontSize: 20 }} />
+                    <Typography variant="subtitle2" fontWeight={600}>CUBE</Typography>
+                  </Box>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Profile</InputLabel>
+                    <Select
+                      value={selectedCubeProfile}
+                      label="Profile"
+                      onChange={e => setSelectedCubeProfile(e.target.value)}
+                    >
+                      {cubeProfiles.map(p => (
+                        <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
               </Grid>
             )}
             {devices.some(d => d.type === 'expressway') && (
               <Grid item xs={12} md={4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Expressway Profile</InputLabel>
-                  <Select
-                    value={selectedExpresswayProfile}
-                    label="Expressway Profile"
-                    onChange={e => setSelectedExpresswayProfile(e.target.value)}
-                  >
-                    {expresswayProfiles.map(p => (
-                      <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(156,39,176,0.1)' : 'rgba(156,39,176,0.05)',
+                    border: '1px solid',
+                    borderColor: theme => theme.palette.mode === 'dark' ? 'rgba(156,39,176,0.3)' : 'rgba(156,39,176,0.2)',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <ExpresswayIcon sx={{ color: '#9c27b0', fontSize: 20 }} />
+                    <Typography variant="subtitle2" fontWeight={600}>Expressway</Typography>
+                  </Box>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Profile</InputLabel>
+                    <Select
+                      value={selectedExpresswayProfile}
+                      label="Profile"
+                      onChange={e => setSelectedExpresswayProfile(e.target.value)}
+                    >
+                      {expresswayProfiles.map(p => (
+                        <MenuItem key={p.name} value={p.name}>{p.name} - {p.description}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
               </Grid>
             )}
-          </Grid>
+            </Grid>
+          </Collapse>
         </Paper>
       )}
 
@@ -861,17 +1135,17 @@ export default function LogCollection() {
                 onChange={e => handleDeviceTypeChange(e.target.value as DeviceType)}
               >
                 <MenuItem value="cucm">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     <CucmIcon /> CUCM Cluster
                   </Box>
                 </MenuItem>
                 <MenuItem value="cube">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     <CubeIcon /> CUBE / IOS-XE
                   </Box>
                 </MenuItem>
                 <MenuItem value="expressway">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     <ExpresswayIcon /> Expressway
                   </Box>
                 </MenuItem>

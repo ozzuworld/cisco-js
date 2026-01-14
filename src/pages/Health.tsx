@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Typography,
@@ -28,6 +28,7 @@ import {
   DialogActions,
   Collapse,
   Tooltip,
+  alpha,
 } from '@mui/material'
 import {
   Visibility,
@@ -48,6 +49,9 @@ import {
   ContentCopy,
   Close,
   PlayArrow,
+  DevicesOther,
+  Assessment,
+  Checklist,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { healthService } from '@/services'
@@ -68,6 +72,9 @@ import {
   defaultExpresswayChecks,
 } from '@/types'
 
+// Emerald accent theme for Health Check (distinct from blue LogCollection and teal Packet Capture)
+const ACCENT_COLOR = '#10b981' // emerald-500
+
 // Device entry for the form
 interface DeviceEntry extends DeviceHealthTarget {
   id: string
@@ -75,9 +82,9 @@ interface DeviceEntry extends DeviceHealthTarget {
 
 // Device type configuration
 const deviceTypeConfig: Record<DeviceType, { label: string; icon: React.ReactElement; color: string; defaultPort: number }> = {
-  cucm: { label: 'CUCM', icon: <CucmIcon />, color: '#1976d2', defaultPort: 22 },
-  cube: { label: 'CUBE', icon: <CubeIcon />, color: '#ed6c02', defaultPort: 22 },
-  expressway: { label: 'Expressway', icon: <ExpresswayIcon />, color: '#9c27b0', defaultPort: 443 },
+  cucm: { label: 'CUCM', icon: <CucmIcon />, color: '#0891b2', defaultPort: 22 },      // cyan-600
+  cube: { label: 'CUBE', icon: <CubeIcon />, color: '#d97706', defaultPort: 22 },       // amber-600
+  expressway: { label: 'Expressway', icon: <ExpresswayIcon />, color: '#7c3aed', defaultPort: 443 }, // violet-600
 }
 
 // Check labels
@@ -709,15 +716,37 @@ export default function Health() {
     return healthResult?.devices.find(d => d.host === host)
   }
 
+  // Workflow steps with icons
+  const workflowSteps = [
+    { label: 'Devices', icon: <DevicesOther sx={{ fontSize: 16 }} /> },
+    { label: 'Configure', icon: <Checklist sx={{ fontSize: 16 }} /> },
+    { label: 'Check', icon: <HealthAndSafety sx={{ fontSize: 16 }} /> },
+    { label: 'Results', icon: <Assessment sx={{ fontSize: 16 }} /> },
+  ]
+
+  const getActiveStep = () => {
+    if (healthResult) return 3
+    if (isChecking) return 2
+    if (devices.length > 0) return 1
+    return 0
+  }
+
+  // Device counts by type
+  const deviceCounts = {
+    cucm: devices.filter(d => d.device_type === 'cucm').length,
+    cube: devices.filter(d => d.device_type === 'cube').length,
+    expressway: devices.filter(d => d.device_type === 'expressway').length,
+  }
+
   return (
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
-          <Typography variant="h4" gutterBottom>
+          <Typography variant="h5" fontWeight={600}>
             Device Health Check
           </Typography>
-          <Typography color="text.secondary">
+          <Typography variant="body2" color="text.secondary">
             Check the health of CUCM, CUBE, and Expressway devices
           </Typography>
         </Box>
@@ -726,6 +755,7 @@ export default function Health() {
             variant="outlined"
             startIcon={<Add />}
             onClick={() => setShowAddDevice(true)}
+            sx={{ borderColor: ACCENT_COLOR, color: ACCENT_COLOR, '&:hover': { borderColor: ACCENT_COLOR, bgcolor: alpha(ACCENT_COLOR, 0.08) } }}
           >
             Add Device
           </Button>
@@ -735,6 +765,7 @@ export default function Health() {
               startIcon={isChecking ? <CircularProgress size={20} color="inherit" /> : <PlayArrow />}
               onClick={handleRunHealthCheck}
               disabled={isChecking}
+              sx={{ bgcolor: ACCENT_COLOR, '&:hover': { bgcolor: '#059669' } }}
             >
               {isChecking ? 'Checking...' : 'Check Health'}
             </Button>
@@ -742,20 +773,142 @@ export default function Health() {
         </Box>
       </Box>
 
+      {/* Compact Workflow & Stats Bar */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2,
+          mb: 2,
+          p: 1.5,
+          bgcolor: alpha(ACCENT_COLOR, 0.06),
+          borderRadius: 2,
+          border: `1px solid ${alpha(ACCENT_COLOR, 0.15)}`,
+        }}
+      >
+        {/* Mini Stepper with Icons */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {workflowSteps.map((step, index) => {
+            const isActive = index === getActiveStep()
+            const isCompleted = index < getActiveStep()
+            return (
+              <Box key={step.label} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Chip
+                  size="small"
+                  label={step.label}
+                  icon={isCompleted ? <CheckCircle sx={{ fontSize: 16 }} /> : step.icon}
+                  sx={{
+                    height: 30,
+                    fontSize: '0.75rem',
+                    fontWeight: isActive ? 600 : 400,
+                    bgcolor: isCompleted ? '#10b981' : isActive ? ACCENT_COLOR : 'transparent',
+                    color: isCompleted || isActive ? 'white' : 'text.secondary',
+                    border: !isCompleted && !isActive ? '1px solid' : 'none',
+                    borderColor: 'divider',
+                    '& .MuiChip-icon': {
+                      color: isCompleted || isActive ? 'white' : 'text.disabled',
+                    },
+                  }}
+                />
+                {index < workflowSteps.length - 1 && (
+                  <Box
+                    sx={{
+                      width: 24,
+                      height: 2,
+                      bgcolor: isCompleted ? '#10b981' : 'divider',
+                      mx: 0.5,
+                    }}
+                  />
+                )}
+              </Box>
+            )
+          })}
+        </Box>
+
+        {/* Compact Stats */}
+        {devices.length > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip
+              size="small"
+              icon={<DevicesOther sx={{ fontSize: 16 }} />}
+              label={`${devices.length} devices`}
+              sx={{ bgcolor: alpha(ACCENT_COLOR, 0.15) }}
+            />
+            {deviceCounts.cucm > 0 && (
+              <Chip
+                size="small"
+                icon={<CucmIcon sx={{ fontSize: 16, color: deviceTypeConfig.cucm.color }} />}
+                label={deviceCounts.cucm}
+                sx={{ bgcolor: alpha(deviceTypeConfig.cucm.color, 0.1), minWidth: 50 }}
+              />
+            )}
+            {deviceCounts.cube > 0 && (
+              <Chip
+                size="small"
+                icon={<CubeIcon sx={{ fontSize: 16, color: deviceTypeConfig.cube.color }} />}
+                label={deviceCounts.cube}
+                sx={{ bgcolor: alpha(deviceTypeConfig.cube.color, 0.1), minWidth: 50 }}
+              />
+            )}
+            {deviceCounts.expressway > 0 && (
+              <Chip
+                size="small"
+                icon={<ExpresswayIcon sx={{ fontSize: 16, color: deviceTypeConfig.expressway.color }} />}
+                label={deviceCounts.expressway}
+                sx={{ bgcolor: alpha(deviceTypeConfig.expressway.color, 0.1), minWidth: 50 }}
+              />
+            )}
+            {healthResult && (
+              <Chip
+                size="small"
+                icon={<CheckCircle sx={{ fontSize: 16 }} />}
+                label={`${healthResult.healthy_devices}/${healthResult.total_devices} healthy`}
+                color={healthResult.overall_status === 'healthy' ? 'success' : healthResult.overall_status === 'degraded' ? 'warning' : 'error'}
+              />
+            )}
+          </Box>
+        )}
+      </Box>
+
       {/* No devices state */}
       {devices.length === 0 && (
-        <Paper sx={{ p: 6, textAlign: 'center' }}>
-          <HealthAndSafety sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-          <Typography variant="h5" color="text.secondary" gutterBottom>
+        <Paper
+          sx={{
+            p: 6,
+            textAlign: 'center',
+            borderRadius: 3,
+            border: `1px dashed ${alpha(ACCENT_COLOR, 0.3)}`,
+            bgcolor: alpha(ACCENT_COLOR, 0.02),
+          }}
+        >
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              bgcolor: alpha(ACCENT_COLOR, 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 3,
+            }}
+          >
+            <HealthAndSafety sx={{ fontSize: 40, color: ACCENT_COLOR }} />
+          </Box>
+          <Typography variant="h6" color="text.primary" fontWeight={600} gutterBottom>
             No Devices Configured
           </Typography>
-          <Typography color="text.secondary" sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Add devices to check their health status
           </Typography>
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={() => setShowAddDevice(true)}
+            sx={{ bgcolor: ACCENT_COLOR, '&:hover': { bgcolor: '#059669' } }}
           >
             Add Your First Device
           </Button>
@@ -764,26 +917,61 @@ export default function Health() {
 
       {/* Results Summary */}
       {healthResult && (
-        <Paper sx={{ p: 3, mb: 3 }}>
+        <Paper
+          sx={{
+            p: 3,
+            mb: 3,
+            borderRadius: 3,
+            background: theme => theme.palette.mode === 'dark'
+              ? `linear-gradient(135deg, ${alpha(getStatusColor(healthResult.overall_status), 0.1)} 0%, ${alpha(theme.palette.background.paper, 0.95)} 40%)`
+              : `linear-gradient(135deg, ${alpha(getStatusColor(healthResult.overall_status), 0.08)} 0%, ${theme.palette.background.paper} 40%)`,
+            border: `1px solid ${alpha(getStatusColor(healthResult.overall_status), 0.2)}`,
+          }}
+        >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {getStatusIcon(healthResult.overall_status, 56)}
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 3,
+                  bgcolor: alpha(getStatusColor(healthResult.overall_status), 0.1),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `2px solid ${getStatusColor(healthResult.overall_status)}`,
+                  ...(healthResult.overall_status !== 'healthy' ? {
+                    animation: 'statusPulse 2s ease-in-out infinite',
+                    '@keyframes statusPulse': {
+                      '0%, 100%': {
+                        boxShadow: `0 0 0 0 ${alpha(getStatusColor(healthResult.overall_status), 0.4)}`,
+                      },
+                      '50%': {
+                        boxShadow: `0 0 0 8px ${alpha(getStatusColor(healthResult.overall_status), 0)}`,
+                      },
+                    },
+                  } : {}),
+                }}
+              >
+                {getStatusIcon(healthResult.overall_status, 32)}
+              </Box>
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="h5">
-                    Overall: {healthResult.overall_status.toUpperCase()}
+                  <Typography variant="h5" fontWeight={700}>
+                    {healthResult.overall_status.charAt(0).toUpperCase() + healthResult.overall_status.slice(1)}
                   </Typography>
                   <Chip
                     size="small"
                     sx={{
                       bgcolor: getStatusColor(healthResult.overall_status),
                       color: 'white',
+                      fontWeight: 600,
                     }}
                     label={healthResult.overall_status}
                   />
                 </Box>
                 <Typography variant="body2" color="text.secondary">
-                  Checked at {formatTime(healthResult.checked_at)}
+                  Health check completed at {formatTime(healthResult.checked_at)}
                 </Typography>
               </Box>
             </Box>
@@ -791,8 +979,9 @@ export default function Health() {
               variant="outlined"
               startIcon={<Download />}
               onClick={downloadFullReport}
+              sx={{ borderColor: ACCENT_COLOR, color: ACCENT_COLOR, '&:hover': { borderColor: ACCENT_COLOR, bgcolor: alpha(ACCENT_COLOR, 0.08) } }}
             >
-              Download Full Report
+              Download Report
             </Button>
           </Box>
 
@@ -801,41 +990,78 @@ export default function Health() {
           {/* Summary Stats */}
           <Grid container spacing={2}>
             <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center', p: 2, borderRadius: 1, bgcolor: 'grey.50' }}>
-                <Typography variant="h3" color="text.primary">
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: theme => alpha(theme.palette.text.primary, 0.03),
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <DevicesOther sx={{ fontSize: 24, color: 'text.secondary', mb: 0.5 }} />
+                <Typography variant="h3" fontWeight={700} color="text.primary">
                   {healthResult.total_devices}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" fontWeight={500}>
                   Total Devices
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center', p: 2, borderRadius: 1, bgcolor: '#dcfce7' }}>
-                <Typography variant="h3" sx={{ color: '#22c55e' }}>
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: alpha('#22c55e', 0.1),
+                  border: `1px solid ${alpha('#22c55e', 0.3)}`,
+                }}
+              >
+                <CheckCircle sx={{ fontSize: 24, color: '#22c55e', mb: 0.5 }} />
+                <Typography variant="h3" fontWeight={700} sx={{ color: '#22c55e' }}>
                   {healthResult.healthy_devices}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" fontWeight={500}>
                   Healthy
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center', p: 2, borderRadius: 1, bgcolor: '#fef9c3' }}>
-                <Typography variant="h3" sx={{ color: '#eab308' }}>
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: alpha('#eab308', 0.1),
+                  border: `1px solid ${alpha('#eab308', 0.3)}`,
+                }}
+              >
+                <Warning sx={{ fontSize: 24, color: '#eab308', mb: 0.5 }} />
+                <Typography variant="h3" fontWeight={700} sx={{ color: '#eab308' }}>
                   {healthResult.degraded_devices}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" fontWeight={500}>
                   Degraded
                 </Typography>
               </Box>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center', p: 2, borderRadius: 1, bgcolor: '#fee2e2' }}>
-                <Typography variant="h3" sx={{ color: '#ef4444' }}>
-                  {healthResult.critical_devices + healthResult.unknown_devices}
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: alpha('#ef4444', 0.1),
+                  border: `1px solid ${alpha('#ef4444', 0.3)}`,
+                }}
+              >
+                <ErrorIcon sx={{ fontSize: 24, color: '#ef4444', mb: 0.5 }} />
+                <Typography variant="h3" fontWeight={700} sx={{ color: '#ef4444' }}>
+                  {(healthResult.critical_devices || 0) + (healthResult.unknown_devices || 0)}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" fontWeight={500}>
                   Critical/Unknown
                 </Typography>
               </Box>
@@ -846,113 +1072,183 @@ export default function Health() {
 
       {/* Device Cards */}
       {devices.length > 0 && (
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {devices.map((device) => {
             const config = deviceTypeConfig[device.device_type]
             const result = getDeviceResult(device.host)
             const hasResult = !!result
             const status: HealthStatus = result?.status || 'unknown'
             const quickStatus = result ? getDeviceQuickStatus(result) : []
+            const statusColor = hasResult ? getStatusColor(status) : config.color
 
             return (
-              <Grid item xs={12} sm={6} md={4} key={device.id}>
+              <Grid item xs={12} sm={6} md={4} lg={3} key={device.id}>
                 <Card
                   sx={{
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    borderLeft: 4,
-                    borderColor: hasResult ? getStatusColor(status) : 'grey.300',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    border: 'none',
+                    boxShadow: `0 2px 8px ${alpha(statusColor, 0.15)}`,
+                    transition: 'all 0.2s ease',
                     '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: 4,
+                      transform: 'translateY(-4px)',
+                      boxShadow: `0 8px 24px ${alpha(statusColor, 0.25)}`,
                     },
                   }}
                 >
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Chip
-                          icon={config.icon}
-                          label={config.label}
-                          size="small"
-                          sx={{ bgcolor: config.color, color: 'white' }}
-                        />
-                      </Box>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleRemoveDevice(device.id)}
+                  {/* Gradient header with floating icon */}
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: `linear-gradient(135deg, ${alpha(config.color, 0.15)} 0%, ${alpha(config.color, 0.05)} 100%)`,
+                      borderBottom: `2px solid ${hasResult ? statusColor : config.color}`,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 2,
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: `0 2px 8px ${alpha(config.color, 0.3)}`,
+                        }}
                       >
-                        <Delete fontSize="small" />
-                      </IconButton>
+                        {React.cloneElement(config.icon, { sx: { fontSize: 20, color: config.color } })}
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" fontWeight={700} color={config.color} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          {config.label}
+                        </Typography>
+                        {/* Status indicator */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              bgcolor: hasResult ? statusColor : '#9ca3af',
+                              ...(isChecking && !hasResult ? {
+                                animation: 'pulse 1.5s ease-in-out infinite',
+                                '@keyframes pulse': {
+                                  '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+                                  '50%': { opacity: 0.5, transform: 'scale(1.3)' },
+                                },
+                              } : {}),
+                            }}
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                            {hasResult ? status.charAt(0).toUpperCase() + status.slice(1) :
+                             isChecking ? 'Checking' : 'Pending'}
+                          </Typography>
+                        </Box>
+                      </Box>
                     </Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleRemoveDevice(device.id)}
+                      sx={{ p: 0.5, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                    >
+                      <Delete sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Box>
 
-                    <Typography variant="h6" gutterBottom>
+                  <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                    {/* Host */}
+                    <Typography variant="body1" sx={{ fontWeight: 600, mb: 1.5, color: 'text.primary' }}>
                       {device.host}
                     </Typography>
 
                     {hasResult ? (
                       <>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          {getStatusIcon(status, 20)}
-                          <Typography
-                            variant="body1"
-                            fontWeight="medium"
-                            sx={{ color: getStatusColor(status) }}
-                          >
-                            {status.toUpperCase()}
-                          </Typography>
-                        </Box>
-
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        {/* Quick status message */}
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
                           {result?.message}
                         </Typography>
 
+                        {/* Quick status chips */}
                         {quickStatus.length > 0 && (
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                             {quickStatus.map(({ name, ok }) => (
                               <Chip
                                 key={name}
                                 label={name}
                                 size="small"
-                                icon={ok ? <CheckCircle fontSize="small" /> : <Warning fontSize="small" />}
-                                color={ok ? 'success' : 'warning'}
-                                variant="outlined"
+                                icon={ok ? <CheckCircle sx={{ fontSize: 14 }} /> : <Warning sx={{ fontSize: 14 }} />}
+                                sx={{
+                                  height: 24,
+                                  fontSize: '0.7rem',
+                                  fontWeight: ok ? 400 : 600,
+                                  bgcolor: ok ? alpha('#22c55e', 0.1) : '#eab308',
+                                  color: ok ? '#22c55e' : 'white',
+                                  border: ok ? `1px solid ${alpha('#22c55e', 0.3)}` : 'none',
+                                  '& .MuiChip-icon': { color: ok ? '#22c55e' : 'white' },
+                                }}
                               />
                             ))}
                           </Box>
                         )}
 
                         {result && !result.reachable && (
-                          <Alert severity="error" sx={{ mt: 2 }}>
-                            Device unreachable
-                          </Alert>
+                          <Chip
+                            size="small"
+                            label="Unreachable"
+                            color="error"
+                            sx={{ height: 24, fontSize: '0.7rem', mt: 1 }}
+                          />
                         )}
                       </>
                     ) : (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                        <HelpOutline fontSize="small" />
-                        <Typography variant="body2">
-                          {isChecking ? 'Checking...' : 'Not checked yet'}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {isChecking ? (
+                          <CircularProgress size={14} sx={{ color: ACCENT_COLOR }} />
+                        ) : (
+                          <HelpOutline sx={{ fontSize: 14, color: 'text.disabled' }} />
+                        )}
+                        <Typography variant="caption" color="text.secondary">
+                          {isChecking ? 'Running checks...' : 'Not checked yet'}
                         </Typography>
                       </Box>
                     )}
                   </CardContent>
 
-                  <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
+                  <CardActions sx={{ px: 2, pb: 1.5, pt: 0, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Button
                       size="small"
                       onClick={() => result && setSelectedDevice(result)}
                       disabled={!hasResult}
+                      sx={{
+                        fontSize: '0.75rem',
+                        color: hasResult ? config.color : 'text.disabled',
+                        '&:hover': { bgcolor: alpha(config.color, 0.08) },
+                      }}
                     >
                       View Details
                     </Button>
                     <Button
                       size="small"
-                      startIcon={<Download />}
+                      startIcon={<Download sx={{ fontSize: 14 }} />}
                       onClick={() => result && downloadDeviceReport(result, 'json')}
                       disabled={!hasResult}
+                      variant={hasResult ? 'contained' : 'text'}
+                      sx={{
+                        ml: 'auto',
+                        fontSize: '0.75rem',
+                        ...(hasResult ? {
+                          bgcolor: ACCENT_COLOR,
+                          '&:hover': { bgcolor: '#059669' },
+                        } : {}),
+                      }}
                     >
                       Download
                     </Button>
@@ -966,13 +1262,46 @@ export default function Health() {
 
       {/* Loading overlay */}
       {isChecking && devices.length > 0 && !healthResult && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
-          <CircularProgress size={60} />
-          <Typography sx={{ mt: 2 }}>Running health checks...</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Checking {devices.length} device(s)
+        <Paper
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            py: 6,
+            mt: 3,
+            borderRadius: 3,
+            border: `1px solid ${alpha(ACCENT_COLOR, 0.2)}`,
+            bgcolor: alpha(ACCENT_COLOR, 0.02),
+          }}
+        >
+          <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+            <CircularProgress
+              size={70}
+              thickness={3}
+              sx={{ color: ACCENT_COLOR }}
+            />
+            <Box
+              sx={{
+                top: 0,
+                left: 0,
+                bottom: 0,
+                right: 0,
+                position: 'absolute',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <HealthAndSafety sx={{ fontSize: 28, color: ACCENT_COLOR }} />
+            </Box>
+          </Box>
+          <Typography variant="h6" fontWeight={600} sx={{ mt: 2, color: 'text.primary' }}>
+            Running Health Checks
           </Typography>
-        </Box>
+          <Typography variant="body2" color="text.secondary">
+            Checking {devices.length} device{devices.length > 1 ? 's' : ''}...
+          </Typography>
+        </Paper>
       )}
 
       {/* Add Device Dialog */}
