@@ -119,9 +119,6 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
       return
     }
 
-    // selectedNodes already contains IP addresses
-    console.log('Selected node IPs:', wizardData.selectedNodes)
-
     try {
       const job = await createJobMutation.mutateAsync({
         publisher_host: wizardData.connection.hostname,

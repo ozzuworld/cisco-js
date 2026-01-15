@@ -16,8 +16,6 @@ export const clusterService = {
 
     const response = await apiClient.post<DiscoverResponse>('/discover-nodes', payload)
 
-    console.log('Backend discover response:', response)
-
     return response
   },
 
