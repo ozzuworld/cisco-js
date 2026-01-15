@@ -86,8 +86,6 @@ export const jobService = {
   async getJobs(page = 1, pageSize = 20): Promise<PaginatedResponse<Job>> {
     const response = await apiClient.get<BackendJobsListResponse>(`/jobs?page=${page}&page_size=${pageSize}`)
 
-    console.log('Backend jobs response:', response)
-
     // Transform backend response to frontend format
     return {
       items: (response.jobs || []).map(transformJob),
@@ -109,10 +107,7 @@ export const jobService = {
    * Create new job
    */
   async createJob(request: CreateJobRequest): Promise<Job> {
-    console.log('Creating job with request:', JSON.stringify(request, null, 2))
     const response = await apiClient.post<BackendCreateJobResponse>('/jobs', request)
-
-    console.log('Backend create job response:', response)
 
     // Transform to frontend Job format
     return {
@@ -146,9 +141,7 @@ export const jobService = {
    * Get job status (for polling) - detailed version
    */
   async getJobStatus(jobId: string): Promise<JobStatusResponse> {
-    const response = await apiClient.get<JobStatusResponse>(`/jobs/${jobId}`)
-    console.log('Job status response:', response)
-    return response
+    return apiClient.get<JobStatusResponse>(`/jobs/${jobId}`)
   },
 
   /**

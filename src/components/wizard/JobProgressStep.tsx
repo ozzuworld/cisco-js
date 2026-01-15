@@ -76,7 +76,6 @@ export function JobProgressStep({ jobId, onClose }: JobProgressStepProps) {
             setArtifacts(artifactsResponse.artifacts || [])
           } catch {
             // Artifacts might not be available yet
-            console.log('Artifacts not available yet')
           }
 
           // Stop polling when job is done

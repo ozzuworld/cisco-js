@@ -73,7 +73,6 @@ export const logService = {
    * Start a log collection from CUBE or Expressway
    */
   async startCollection(request: StartLogCollectionRequest): Promise<StartLogCollectionResponse> {
-    console.log('Starting log collection:', request.host)
     return apiClient.post<StartLogCollectionResponse>('/logs', request)
   },
 
@@ -147,7 +146,6 @@ export const logService = {
    * Discover nodes in a CUCM cluster
    */
   async discoverNodes(request: DiscoverNodesRequest): Promise<DiscoverResponse> {
-    console.log('Discovering nodes for:', request.publisher_host)
     // Discovery can take a while, use extended timeout
     return apiClient.post<DiscoverResponse>('/discover-nodes', request, {
       timeout: 120000, // 2 minutes

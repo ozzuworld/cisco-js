@@ -86,7 +86,6 @@ export default function JobDetails() {
           setArtifacts(artifactsResponse.artifacts || [])
         } catch {
           // Artifacts might not be available
-          console.log('Artifacts not available')
         }
       }
 
