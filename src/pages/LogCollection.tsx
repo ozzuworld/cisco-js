@@ -65,7 +65,6 @@ import {
   Warning as WarningIcon,
   Edit as EditIcon,
   Refresh,
-  Settings as SettingsIcon,
   BugReport as DebugIcon,
   Info as InfoIcon,
   Save as SaveIcon,
