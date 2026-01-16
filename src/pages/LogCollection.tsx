@@ -32,6 +32,8 @@ import {
   Checkbox,
   Collapse,
   alpha,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material'
 import {
   Visibility,
@@ -56,6 +58,8 @@ import {
   CloudDownload,
   Star,
   Computer,
+  Schedule,
+  DateRange,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { logService, jobService } from '@/services'
@@ -132,6 +136,12 @@ export default function LogCollection() {
   const [cucmProfiles, setCucmProfiles] = useState<LogProfile[]>([])
   const [selectedCucmProfile, setSelectedCucmProfile] = useState('callmanager_full')
   const [selectedDebugLevel, setSelectedDebugLevel] = useState<DebugLevel>('basic')
+
+  // Time range options
+  const [timeMode, setTimeMode] = useState<'relative' | 'range'>('relative')
+  const [reltimeMinutes, setReltimeMinutes] = useState<number>(60)
+  const [startTime, setStartTime] = useState<string>('')
+  const [endTime, setEndTime] = useState<string>('')
 
   // Detail modal
   const [selectedDevice, setSelectedDevice] = useState<DeviceEntry | null>(null)
@@ -312,6 +322,10 @@ export default function LogCollection() {
             profile: selectedCucmProfile,
             options: {
               debug_level: selectedDebugLevel,
+              time_mode: timeMode,
+              ...(timeMode === 'relative'
+                ? { reltime_minutes: reltimeMinutes }
+                : { start_time: startTime, end_time: endTime }),
             },
           })
 
@@ -1059,7 +1073,7 @@ export default function LogCollection() {
                       ))}
                     </Select>
                   </FormControl>
-                  <FormControl fullWidth size="small">
+                  <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
                     <InputLabel>Debug Level</InputLabel>
                     <Select
                       value={selectedDebugLevel}
@@ -1086,6 +1100,75 @@ export default function LogCollection() {
                       </MenuItem>
                     </Select>
                   </FormControl>
+
+                  {/* Time Range Selection */}
+                  <Box sx={{ mt: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Schedule sx={{ color: '#1976d2', fontSize: 18 }} />
+                      <Typography variant="caption" fontWeight={600} color="text.secondary">
+                        Time Range
+                      </Typography>
+                    </Box>
+                    <ToggleButtonGroup
+                      value={timeMode}
+                      exclusive
+                      onChange={(_, value) => value && setTimeMode(value)}
+                      size="small"
+                      fullWidth
+                      sx={{ mb: 1.5 }}
+                    >
+                      <ToggleButton value="relative">
+                        <Schedule sx={{ fontSize: 16, mr: 0.5 }} />
+                        Last X Minutes
+                      </ToggleButton>
+                      <ToggleButton value="range">
+                        <DateRange sx={{ fontSize: 16, mr: 0.5 }} />
+                        Date Range
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+
+                    {timeMode === 'relative' ? (
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Time Period</InputLabel>
+                        <Select
+                          value={reltimeMinutes}
+                          label="Time Period"
+                          onChange={e => setReltimeMinutes(Number(e.target.value))}
+                        >
+                          <MenuItem value={15}>Last 15 minutes</MenuItem>
+                          <MenuItem value={30}>Last 30 minutes</MenuItem>
+                          <MenuItem value={60}>Last 1 hour</MenuItem>
+                          <MenuItem value={120}>Last 2 hours</MenuItem>
+                          <MenuItem value={240}>Last 4 hours</MenuItem>
+                          <MenuItem value={480}>Last 8 hours</MenuItem>
+                          <MenuItem value={1440}>Last 24 hours</MenuItem>
+                          <MenuItem value={2880}>Last 48 hours</MenuItem>
+                          <MenuItem value={10080}>Last 7 days</MenuItem>
+                        </Select>
+                      </FormControl>
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        <TextField
+                          label="Start Time"
+                          type="datetime-local"
+                          size="small"
+                          fullWidth
+                          value={startTime}
+                          onChange={e => setStartTime(e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                        <TextField
+                          label="End Time"
+                          type="datetime-local"
+                          size="small"
+                          fullWidth
+                          value={endTime}
+                          onChange={e => setEndTime(e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
               </Grid>
             )}
