@@ -71,7 +71,8 @@ import {
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { logService, jobService } from '@/services'
-import type { NodeTraceLevel } from '@/services/jobService'
+import { useGetTraceLevels, useSetTraceLevels } from '@/hooks'
+import type { TraceLevelNodeResult } from '@/services/traceService'
 import type {
   ClusterNode,
   LogProfile,
@@ -150,11 +151,13 @@ export default function LogCollection() {
   const [selectedCucmProfile, setSelectedCucmProfile] = useState('callmanager_full')
 
   // Trace level management state
-  const [traceLevels, setTraceLevels] = useState<NodeTraceLevel[]>([])
-  const [isLoadingTraceLevels, setIsLoadingTraceLevels] = useState(false)
-  const [isSettingTraceLevels, setIsSettingTraceLevels] = useState(false)
+  const [traceLevels, setTraceLevels] = useState<TraceLevelNodeResult[]>([])
   const [targetDebugLevel, setTargetDebugLevel] = useState<DebugLevel>('basic')
   const [traceSettingsExpanded, setTraceSettingsExpanded] = useState(true)
+
+  // Trace level hooks
+  const getTraceLevelsMutation = useGetTraceLevels()
+  const setTraceLevelsMutation = useSetTraceLevels()
 
   // Time range options
   const [timeMode, setTimeMode] = useState<'relative' | 'range'>('relative')
@@ -348,27 +351,28 @@ export default function LogCollection() {
       return
     }
 
-    setIsLoadingTraceLevels(true)
-    try {
-      // Use effective IPs (edited IPs) for the request
-      const effectiveHosts = (cucmDevice.selectedNodes || []).map(originalIp =>
-        cucmDevice.nodeIpOverrides?.[originalIp] || originalIp
-      )
+    // Use effective IPs (edited IPs) for the request
+    const effectiveHosts = (cucmDevice.selectedNodes || []).map(originalIp =>
+      cucmDevice.nodeIpOverrides?.[originalIp] || originalIp
+    )
 
-      const response = await jobService.getTraceLevel({
+    getTraceLevelsMutation.mutate(
+      {
         hosts: effectiveHosts,
         username: cucmDevice.username,
         password: cucmDevice.password,
         port: cucmDevice.port,
-      })
-
-      setTraceLevels(response.nodes)
-      enqueueSnackbar(`Retrieved trace levels from ${response.nodes.length} nodes`, { variant: 'success' })
-    } catch (error) {
-      enqueueSnackbar(error instanceof Error ? error.message : 'Failed to fetch trace levels', { variant: 'error' })
-    } finally {
-      setIsLoadingTraceLevels(false)
-    }
+      },
+      {
+        onSuccess: (response) => {
+          setTraceLevels(response.results)
+          enqueueSnackbar(`Retrieved trace levels from ${response.successful_nodes} of ${response.total_nodes} nodes`, { variant: 'success' })
+        },
+        onError: (error) => {
+          enqueueSnackbar(error instanceof Error ? error.message : 'Failed to fetch trace levels', { variant: 'error' })
+        },
+      }
+    )
   }
 
   // Set trace levels on CUCM nodes
@@ -379,52 +383,34 @@ export default function LogCollection() {
       return
     }
 
-    setIsSettingTraceLevels(true)
-    try {
-      // Use effective IPs (edited IPs) for the request
-      const effectiveHosts = (cucmDevice.selectedNodes || []).map(originalIp =>
-        cucmDevice.nodeIpOverrides?.[originalIp] || originalIp
-      )
+    // Use effective IPs (edited IPs) for the request
+    const effectiveHosts = (cucmDevice.selectedNodes || []).map(originalIp =>
+      cucmDevice.nodeIpOverrides?.[originalIp] || originalIp
+    )
 
-      const response = await jobService.setTraceLevel({
+    setTraceLevelsMutation.mutate(
+      {
         hosts: effectiveHosts,
         username: cucmDevice.username,
         password: cucmDevice.password,
         port: cucmDevice.port,
         level: targetDebugLevel,  // Must be lowercase: "basic", "detailed", or "verbose"
-      })
-
-      if (response.success) {
-        enqueueSnackbar(`Trace level set to ${targetDebugLevel} on ${response.nodes_updated} nodes`, { variant: 'success' })
-        // Refresh trace levels after setting
-        handleFetchTraceLevels()
-      } else {
-        enqueueSnackbar(response.message || 'Failed to set trace levels', { variant: 'warning' })
+      },
+      {
+        onSuccess: (response) => {
+          if (response.successful_nodes > 0) {
+            enqueueSnackbar(`Trace level set to ${targetDebugLevel} on ${response.successful_nodes} of ${response.total_nodes} nodes`, { variant: 'success' })
+            // Refresh trace levels after setting
+            handleFetchTraceLevels()
+          } else {
+            enqueueSnackbar(response.message || 'Failed to set trace levels on any nodes', { variant: 'warning' })
+          }
+        },
+        onError: (error) => {
+          enqueueSnackbar(error instanceof Error ? error.message : 'Failed to set trace levels', { variant: 'error' })
+        },
       }
-    } catch (error) {
-      enqueueSnackbar(error instanceof Error ? error.message : 'Failed to set trace levels', { variant: 'error' })
-    } finally {
-      setIsSettingTraceLevels(false)
-    }
-  }
-
-  // Get color for debug level chip
-  const getDebugLevelColor = (level?: DebugLevel): 'default' | 'info' | 'warning' => {
-    switch (level) {
-      case 'detailed': return 'info'
-      case 'verbose': return 'warning'
-      default: return 'default'
-    }
-  }
-
-  // Format debug level for display
-  const formatDebugLevel = (level?: DebugLevel): string => {
-    switch (level) {
-      case 'basic': return 'Basic'
-      case 'detailed': return 'Detailed'
-      case 'verbose': return 'Verbose'
-      default: return 'Unknown'
-    }
+    )
   }
 
   const canStartCollection = () => {
@@ -1303,11 +1289,11 @@ export default function LogCollection() {
                     <Typography variant="subtitle2" fontWeight={600}>Current Trace Levels</Typography>
                     <Button
                       size="small"
-                      startIcon={isLoadingTraceLevels ? <CircularProgress size={16} /> : <Refresh />}
+                      startIcon={getTraceLevelsMutation.isPending ? <CircularProgress size={16} /> : <Refresh />}
                       onClick={handleFetchTraceLevels}
-                      disabled={isLoadingTraceLevels}
+                      disabled={getTraceLevelsMutation.isPending}
                     >
-                      {isLoadingTraceLevels ? 'Checking...' : 'Check Status'}
+                      {getTraceLevelsMutation.isPending ? 'Checking...' : 'Check Status'}
                     </Button>
                   </Box>
 
@@ -1317,28 +1303,33 @@ export default function LogCollection() {
                     </Typography>
                   ) : (
                     <List dense sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
-                      {traceLevels.map((nodeLevel, index) => (
-                        <ListItem key={nodeLevel.node} divider={index < traceLevels.length - 1}>
+                      {traceLevels.map((nodeResult, index) => (
+                        <ListItem key={nodeResult.host} divider={index < traceLevels.length - 1}>
                           <ListItemIcon sx={{ minWidth: 36 }}>
-                            {nodeLevel.status === 'success' ? (
+                            {nodeResult.success ? (
                               <CheckCircle color="success" sx={{ fontSize: 20 }} />
                             ) : (
                               <ErrorIcon color="error" sx={{ fontSize: 20 }} />
                             )}
                           </ListItemIcon>
                           <ListItemText
-                            primary={nodeLevel.node}
+                            primary={nodeResult.host}
                             secondary={
-                              nodeLevel.status === 'success' ? (
-                                <Chip
-                                  size="small"
-                                  label={formatDebugLevel(nodeLevel.current_level)}
-                                  color={getDebugLevelColor(nodeLevel.current_level)}
-                                  sx={{ height: 20, fontSize: '0.7rem' }}
-                                />
+                              nodeResult.success ? (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                  {nodeResult.services.map((svc) => (
+                                    <Chip
+                                      key={svc.service_name}
+                                      size="small"
+                                      label={`${svc.service_name}: ${svc.current_level}`}
+                                      color={svc.current_level === 'Debug' ? 'warning' : svc.current_level === 'Detailed' ? 'info' : 'default'}
+                                      sx={{ height: 20, fontSize: '0.65rem' }}
+                                    />
+                                  ))}
+                                </Box>
                               ) : (
                                 <Typography variant="caption" color="error">
-                                  {nodeLevel.error || 'Error fetching level'}
+                                  {nodeResult.error || 'Error fetching level'}
                                 </Typography>
                               )
                             }
@@ -1404,11 +1395,11 @@ export default function LogCollection() {
                     variant="contained"
                     fullWidth
                     color="warning"
-                    startIcon={isSettingTraceLevels ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                    startIcon={setTraceLevelsMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                     onClick={handleSetTraceLevels}
-                    disabled={isSettingTraceLevels}
+                    disabled={setTraceLevelsMutation.isPending}
                   >
-                    {isSettingTraceLevels ? 'Applying...' : 'Apply to All Selected Nodes'}
+                    {setTraceLevelsMutation.isPending ? 'Applying...' : 'Apply to All Selected Nodes'}
                   </Button>
 
                   {targetDebugLevel !== 'basic' && (

@@ -65,46 +65,6 @@ export interface ArtifactsResponse {
   artifacts: Artifact[]
 }
 
-// Trace Level types
-export interface TraceLevelGetRequest {
-  hosts: string[]  // Array of selected node IPs
-  username: string
-  password: string
-  port?: number
-}
-
-export interface NodeTraceLevel {
-  node: string
-  current_level: DebugLevel
-  status: 'success' | 'error'
-  error?: string
-}
-
-export interface TraceLevelGetResponse {
-  nodes: NodeTraceLevel[]
-  timestamp: string
-}
-
-export interface TraceLevelSetRequest {
-  hosts: string[]  // Array of selected node IPs
-  username: string
-  password: string
-  level: DebugLevel  // Must be lowercase: "basic", "detailed", or "verbose"
-  port?: number
-}
-
-export interface TraceLevelSetResponse {
-  success: boolean
-  nodes_updated: number
-  nodes: {
-    node: string
-    status: 'success' | 'error'
-    previous_level?: DebugLevel
-    new_level?: DebugLevel
-    error?: string
-  }[]
-  message: string
-}
 
 // Transform backend job to frontend format
 function transformJob(backendJob: BackendJobSummary): Job {
@@ -251,19 +211,5 @@ export const jobService = {
       ? `/jobs/${jobId}/transcript?node=${nodeIp}`
       : `/jobs/${jobId}/transcript`
     return apiClient.get<string>(url)
-  },
-
-  /**
-   * Get current trace levels from CUCM nodes
-   */
-  async getTraceLevel(request: TraceLevelGetRequest): Promise<TraceLevelGetResponse> {
-    return apiClient.post<TraceLevelGetResponse>('/trace-level/get', request)
-  },
-
-  /**
-   * Set trace levels on CUCM nodes
-   */
-  async setTraceLevel(request: TraceLevelSetRequest): Promise<TraceLevelSetResponse> {
-    return apiClient.post<TraceLevelSetResponse>('/trace-level/set', request)
   },
 }
