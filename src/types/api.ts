@@ -70,11 +70,14 @@ export interface CreateJobRequest {
   options?: CollectionOptions
 }
 
+export type DebugLevel = 'basic' | 'detailed' | 'verbose'
+
 export interface CollectionOptions {
   time_mode?: 'relative' | 'range'
   reltime_minutes?: number
   start_time?: string
   end_time?: string
+  debug_level?: DebugLevel
   compress?: boolean
   recurs?: boolean
   match?: string

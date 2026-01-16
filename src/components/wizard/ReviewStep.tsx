@@ -9,14 +9,21 @@ import {
   ListItemText,
   Chip,
   Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Tooltip,
 } from '@mui/material'
 import {
   CheckCircle as CheckIcon,
   Storage as StorageIcon,
   Settings as SettingsIcon,
   Description as LogIcon,
+  BugReport as DebugIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material'
-import type { ConnectionRequest, ClusterNode, LogProfile } from '@/types'
+import type { ConnectionRequest, ClusterNode, LogProfile, DebugLevel } from '@/types'
 
 interface ReviewStepProps {
   data: {
@@ -24,14 +31,34 @@ interface ReviewStepProps {
     discoveredNodes: ClusterNode[]
     selectedNodes: string[]
     profile: LogProfile | null
+    debugLevel: DebugLevel
   }
   onSubmit: () => void
   onBack: () => void
+  onDebugLevelChange: (level: DebugLevel) => void
   isLoading: boolean
 }
 
-export function ReviewStep({ data, onSubmit, onBack, isLoading }: ReviewStepProps) {
-  const { connection, discoveredNodes, selectedNodes, profile } = data
+const DEBUG_LEVEL_OPTIONS: { value: DebugLevel; label: string; description: string }[] = [
+  {
+    value: 'basic',
+    label: 'Basic (Default)',
+    description: 'Standard trace levels, minimal performance impact',
+  },
+  {
+    value: 'detailed',
+    label: 'Detailed - TAC Troubleshooting',
+    description: 'Increased verbosity for troubleshooting',
+  },
+  {
+    value: 'verbose',
+    label: 'Verbose - Full Debug',
+    description: 'Maximum detail for deep debugging (may impact performance)',
+  },
+]
+
+export function ReviewStep({ data, onSubmit, onBack, onDebugLevelChange, isLoading }: ReviewStepProps) {
+  const { connection, discoveredNodes, selectedNodes, profile, debugLevel } = data
 
   const selectedNodeObjects = discoveredNodes.filter(n => selectedNodes.includes(n.ip))
 
@@ -150,6 +177,40 @@ export function ReviewStep({ data, onSubmit, onBack, isLoading }: ReviewStepProp
             </ListItem>
           )}
         </List>
+      </Paper>
+
+      {/* Debug Level Selection */}
+      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <DebugIcon sx={{ mr: 1, color: 'warning.main' }} />
+          <Typography variant="subtitle1" fontWeight="medium">
+            Debug Level
+          </Typography>
+          <Tooltip title="Higher debug levels capture more detailed logs but may impact system performance. TAC typically requests 'Detailed' or 'Verbose' for troubleshooting.">
+            <InfoIcon sx={{ ml: 1, fontSize: 18, color: 'text.secondary', cursor: 'help' }} />
+          </Tooltip>
+        </Box>
+        <Divider sx={{ my: 1 }} />
+        <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+          <InputLabel id="debug-level-label">Debug Level</InputLabel>
+          <Select
+            labelId="debug-level-label"
+            value={debugLevel}
+            label="Debug Level"
+            onChange={(e) => onDebugLevelChange(e.target.value as DebugLevel)}
+          >
+            {DEBUG_LEVEL_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                <Box>
+                  <Typography variant="body2">{option.label}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {option.description}
+                  </Typography>
+                </Box>
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Paper>
 
       {/* Summary Alert */}

@@ -18,7 +18,7 @@ import { ProfileSelectionStep } from './wizard/ProfileSelectionStep'
 import { ReviewStep } from './wizard/ReviewStep'
 import { JobProgressStep } from './wizard/JobProgressStep'
 import { useDiscoverCluster, useCreateJob } from '@/hooks'
-import type { ConnectionRequest, ClusterNode, LogProfile } from '@/types'
+import type { ConnectionRequest, ClusterNode, LogProfile, DebugLevel } from '@/types'
 
 interface JobWizardProps {
   open: boolean
@@ -31,6 +31,7 @@ interface WizardData {
   discoveredNodes: ClusterNode[]
   selectedNodes: string[]
   profile: LogProfile | null
+  debugLevel: DebugLevel
   createdJobId: string | null
 }
 
@@ -43,6 +44,7 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
     discoveredNodes: [],
     selectedNodes: [],
     profile: null,
+    debugLevel: 'basic',
     createdJobId: null,
   })
 
@@ -65,6 +67,7 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
       discoveredNodes: [],
       selectedNodes: [],
       profile: null,
+      debugLevel: 'basic',
       createdJobId: null,
     })
   }
@@ -112,6 +115,11 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
     handleNext()
   }
 
+  // Handle debug level change from review step
+  const handleDebugLevelChange = (debugLevel: DebugLevel) => {
+    setWizardData(prev => ({ ...prev, debugLevel }))
+  }
+
   // Step 4: Submit Job
   const handleSubmit = async () => {
     if (!wizardData.connection || !wizardData.profile) {
@@ -127,6 +135,9 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
         port: wizardData.connection.port || 22,
         nodes: wizardData.selectedNodes,
         profile: wizardData.profile.name,
+        options: {
+          debug_level: wizardData.debugLevel,
+        },
       })
 
       enqueueSnackbar(`Job ${job.id} created - collecting logs...`, { variant: 'success' })
@@ -181,6 +192,7 @@ export function JobWizard({ open, onClose, onSuccess }: JobWizardProps) {
             data={wizardData}
             onSubmit={handleSubmit}
             onBack={handleBack}
+            onDebugLevelChange={handleDebugLevelChange}
             isLoading={createJobMutation.isPending}
           />
         )
