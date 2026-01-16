@@ -67,11 +67,10 @@ export interface ArtifactsResponse {
 
 // Trace Level types
 export interface TraceLevelGetRequest {
-  publisher_host: string
+  hosts: string[]  // Array of selected node IPs
   username: string
   password: string
   port?: number
-  nodes?: string[]  // Optional: specific nodes, or all discovered nodes
 }
 
 export interface NodeTraceLevel {
@@ -87,12 +86,11 @@ export interface TraceLevelGetResponse {
 }
 
 export interface TraceLevelSetRequest {
-  publisher_host: string
+  hosts: string[]  // Array of selected node IPs
   username: string
   password: string
+  level: DebugLevel  // Must be lowercase: "basic", "detailed", or "verbose"
   port?: number
-  nodes: string[]
-  debug_level: DebugLevel
 }
 
 export interface TraceLevelSetResponse {

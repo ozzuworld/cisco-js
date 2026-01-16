@@ -351,16 +351,15 @@ export default function LogCollection() {
     setIsLoadingTraceLevels(true)
     try {
       // Use effective IPs (edited IPs) for the request
-      const effectiveNodes = (cucmDevice.selectedNodes || []).map(originalIp =>
+      const effectiveHosts = (cucmDevice.selectedNodes || []).map(originalIp =>
         cucmDevice.nodeIpOverrides?.[originalIp] || originalIp
       )
 
       const response = await jobService.getTraceLevel({
-        publisher_host: cucmDevice.host,
+        hosts: effectiveHosts,
         username: cucmDevice.username,
         password: cucmDevice.password,
         port: cucmDevice.port,
-        nodes: effectiveNodes,
       })
 
       setTraceLevels(response.nodes)
@@ -383,17 +382,16 @@ export default function LogCollection() {
     setIsSettingTraceLevels(true)
     try {
       // Use effective IPs (edited IPs) for the request
-      const effectiveNodes = (cucmDevice.selectedNodes || []).map(originalIp =>
+      const effectiveHosts = (cucmDevice.selectedNodes || []).map(originalIp =>
         cucmDevice.nodeIpOverrides?.[originalIp] || originalIp
       )
 
       const response = await jobService.setTraceLevel({
-        publisher_host: cucmDevice.host,
+        hosts: effectiveHosts,
         username: cucmDevice.username,
         password: cucmDevice.password,
         port: cucmDevice.port,
-        nodes: effectiveNodes,
-        debug_level: targetDebugLevel,
+        level: targetDebugLevel,  // Must be lowercase: "basic", "detailed", or "verbose"
       })
 
       if (response.success) {
