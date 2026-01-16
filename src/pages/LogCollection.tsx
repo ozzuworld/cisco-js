@@ -64,6 +64,7 @@ import type {
   LogProfile,
   LogDeviceType,
   DeviceProfile,
+  DebugLevel,
 } from '@/types'
 
 type DeviceType = 'cucm' | 'cube' | 'expressway'
@@ -130,6 +131,7 @@ export default function LogCollection() {
   // CUCM profiles
   const [cucmProfiles, setCucmProfiles] = useState<LogProfile[]>([])
   const [selectedCucmProfile, setSelectedCucmProfile] = useState('callmanager_full')
+  const [selectedDebugLevel, setSelectedDebugLevel] = useState<DebugLevel>('basic')
 
   // Detail modal
   const [selectedDevice, setSelectedDevice] = useState<DeviceEntry | null>(null)
@@ -308,6 +310,9 @@ export default function LogCollection() {
             port: device.port,
             nodes: device.selectedNodes || [],
             profile: selectedCucmProfile,
+            options: {
+              debug_level: selectedDebugLevel,
+            },
           })
 
           setDeviceProgress(prev => ({
@@ -1041,7 +1046,7 @@ export default function LogCollection() {
                     <CucmIcon sx={{ color: '#1976d2', fontSize: 20 }} />
                     <Typography variant="subtitle2" fontWeight={600}>CUCM</Typography>
                   </Box>
-                  <FormControl fullWidth size="small">
+                  <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
                     <InputLabel>Profile</InputLabel>
                     <Select
                       value={selectedCucmProfile}
@@ -1052,6 +1057,33 @@ export default function LogCollection() {
                       {cucmProfiles.map(p => (
                         <MenuItem key={p.name} value={p.name}>{p.name}</MenuItem>
                       ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Debug Level</InputLabel>
+                    <Select
+                      value={selectedDebugLevel}
+                      label="Debug Level"
+                      onChange={e => setSelectedDebugLevel(e.target.value as DebugLevel)}
+                    >
+                      <MenuItem value="basic">
+                        <Box>
+                          <Typography variant="body2">Basic (Default)</Typography>
+                          <Typography variant="caption" color="text.secondary">Standard traces</Typography>
+                        </Box>
+                      </MenuItem>
+                      <MenuItem value="detailed">
+                        <Box>
+                          <Typography variant="body2">Detailed - TAC</Typography>
+                          <Typography variant="caption" color="text.secondary">Increased verbosity</Typography>
+                        </Box>
+                      </MenuItem>
+                      <MenuItem value="verbose">
+                        <Box>
+                          <Typography variant="body2">Verbose - Full Debug</Typography>
+                          <Typography variant="caption" color="text.secondary">Maximum detail</Typography>
+                        </Box>
+                      </MenuItem>
                     </Select>
                   </FormControl>
                 </Box>
