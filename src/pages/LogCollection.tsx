@@ -60,6 +60,8 @@ import {
   Computer,
   Schedule,
   DateRange,
+  Warning as WarningIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { logService, jobService } from '@/services'
@@ -83,6 +85,7 @@ interface DeviceEntry {
   // CUCM-specific
   discoveredNodes?: ClusterNode[]
   selectedNodes?: string[]
+  nodeIpOverrides?: Record<string, string>  // Map original IP -> edited IP
   // CUBE/Expressway-specific
   profile?: string
 }
@@ -121,6 +124,9 @@ export default function LogCollection() {
 
   // CUCM node selection dialog
   const [nodeSelectionDevice, setNodeSelectionDevice] = useState<DeviceEntry | null>(null)
+
+  // IP editing state
+  const [editingIp, setEditingIp] = useState<{ deviceId: string; originalIp: string; currentIp: string } | null>(null)
 
   // Collection state
   const [isCollecting, setIsCollecting] = useState(false)
@@ -245,9 +251,20 @@ export default function LogCollection() {
         port: device.port,
       })
 
+      // Initialize nodeIpOverrides with original IPs (identity mapping)
+      const initialOverrides: Record<string, string> = {}
+      response.nodes.forEach(n => {
+        initialOverrides[n.ip] = n.ip
+      })
+
       setDevices(prev => prev.map(d =>
         d.id === device.id
-          ? { ...d, discoveredNodes: response.nodes, selectedNodes: response.nodes.map(n => n.ip) }
+          ? {
+              ...d,
+              discoveredNodes: response.nodes,
+              selectedNodes: response.nodes.map(n => n.ip),
+              nodeIpOverrides: initialOverrides,
+            }
           : d
       ))
 
@@ -277,6 +294,32 @@ export default function LogCollection() {
           }
         : d
     ))
+  }
+
+  // Handle IP override for a node
+  const handleIpOverride = (deviceId: string, originalIp: string, newIp: string) => {
+    setDevices(prev => prev.map(d =>
+      d.id === deviceId
+        ? {
+            ...d,
+            nodeIpOverrides: {
+              ...d.nodeIpOverrides,
+              [originalIp]: newIp,
+            },
+          }
+        : d
+    ))
+  }
+
+  // Get the effective IP for a node (edited or original)
+  const getEffectiveIp = (device: DeviceEntry, originalIp: string): string => {
+    return device.nodeIpOverrides?.[originalIp] || originalIp
+  }
+
+  // Check if IP has been modified
+  const isIpModified = (device: DeviceEntry, originalIp: string): boolean => {
+    const effectiveIp = getEffectiveIp(device, originalIp)
+    return effectiveIp !== originalIp
   }
 
   const canStartCollection = () => {
@@ -313,12 +356,17 @@ export default function LogCollection() {
     for (const device of devices) {
       try {
         if (device.type === 'cucm') {
+          // Use edited IPs (from nodeIpOverrides) instead of original discovered IPs
+          const effectiveNodes = (device.selectedNodes || []).map(originalIp =>
+            device.nodeIpOverrides?.[originalIp] || originalIp
+          )
+
           const job = await jobService.createJob({
             publisher_host: device.host,
             username: device.username,
             password: device.password,
             port: device.port,
-            nodes: device.selectedNodes || [],
+            nodes: effectiveNodes,
             profile: selectedCucmProfile,
             options: {
               debug_level: selectedDebugLevel,
@@ -904,45 +952,124 @@ export default function LogCollection() {
                       />
                     )}
 
-                    {/* CUCM discovered nodes - chip-based layout */}
+                    {/* CUCM discovered nodes - with editable IPs */}
                     {device.type === 'cucm' && device.discoveredNodes && device.discoveredNodes.length > 0 && (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mb: 1 }}>
                         {device.discoveredNodes.map(node => {
                           const isSelected = device.selectedNodes?.includes(node.ip) || false
                           const isPublisher = node.role?.toLowerCase() === 'publisher'
+                          const effectiveIp = getEffectiveIp(device, node.ip)
+                          const ipModified = isIpModified(device, node.ip)
+                          const isEditing = editingIp?.deviceId === device.id && editingIp?.originalIp === node.ip
+
                           return (
-                            <Chip
+                            <Box
                               key={node.ip}
-                              size="small"
-                              icon={isPublisher ? <Star sx={{ fontSize: 14 }} /> : <Computer sx={{ fontSize: 14 }} />}
-                              label={node.host}
-                              onClick={() => handleToggleNode(device.id, node.ip)}
-                              onDelete={isSelected ? () => handleToggleNode(device.id, node.ip) : undefined}
-                              deleteIcon={isSelected ? <CheckCircle sx={{ fontSize: 14 }} /> : undefined}
                               sx={{
-                                height: 26,
-                                fontSize: '0.7rem',
-                                fontWeight: isSelected ? 600 : 400,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                p: 0.5,
+                                borderRadius: 1,
                                 bgcolor: isSelected
-                                  ? isPublisher ? alpha('#ff9800', 0.15) : alpha('#1976d2', 0.12)
+                                  ? isPublisher ? alpha('#ff9800', 0.08) : alpha('#1976d2', 0.06)
                                   : 'transparent',
                                 border: '1px solid',
                                 borderColor: isSelected
-                                  ? isPublisher ? '#ff9800' : '#1976d2'
+                                  ? isPublisher ? alpha('#ff9800', 0.3) : alpha('#1976d2', 0.2)
                                   : 'divider',
-                                color: isSelected ? 'text.primary' : 'text.secondary',
-                                '& .MuiChip-icon': {
-                                  color: isPublisher ? '#ff9800' : isSelected ? '#1976d2' : 'text.disabled',
-                                },
-                                '& .MuiChip-deleteIcon': {
-                                  color: '#4caf50',
-                                  '&:hover': { color: '#388e3c' },
-                                },
-                                '&:hover': {
-                                  bgcolor: isPublisher ? alpha('#ff9800', 0.1) : alpha('#1976d2', 0.08),
-                                },
                               }}
-                            />
+                            >
+                              {/* Checkbox */}
+                              <Checkbox
+                                size="small"
+                                checked={isSelected}
+                                onChange={() => handleToggleNode(device.id, node.ip)}
+                                sx={{ p: 0.25 }}
+                              />
+
+                              {/* Role icon */}
+                              {isPublisher ? (
+                                <Star sx={{ fontSize: 14, color: '#ff9800' }} />
+                              ) : (
+                                <Computer sx={{ fontSize: 14, color: isSelected ? '#1976d2' : 'text.disabled' }} />
+                              )}
+
+                              {/* Hostname */}
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  fontWeight: isSelected ? 600 : 400,
+                                  color: isSelected ? 'text.primary' : 'text.secondary',
+                                  minWidth: 80,
+                                }}
+                              >
+                                {node.host}
+                              </Typography>
+
+                              {/* Editable IP field */}
+                              {isEditing ? (
+                                <TextField
+                                  size="small"
+                                  value={editingIp.currentIp}
+                                  onChange={(e) => setEditingIp({ ...editingIp, currentIp: e.target.value })}
+                                  onBlur={() => {
+                                    handleIpOverride(device.id, node.ip, editingIp.currentIp)
+                                    setEditingIp(null)
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleIpOverride(device.id, node.ip, editingIp.currentIp)
+                                      setEditingIp(null)
+                                    } else if (e.key === 'Escape') {
+                                      setEditingIp(null)
+                                    }
+                                  }}
+                                  autoFocus
+                                  sx={{
+                                    flex: 1,
+                                    '& .MuiInputBase-input': {
+                                      fontSize: '0.7rem',
+                                      py: 0.25,
+                                      px: 0.5,
+                                    },
+                                  }}
+                                />
+                              ) : (
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.5,
+                                    flex: 1,
+                                    cursor: 'pointer',
+                                    '&:hover': { bgcolor: alpha('#000', 0.04) },
+                                    borderRadius: 0.5,
+                                    px: 0.5,
+                                  }}
+                                  onClick={() => setEditingIp({
+                                    deviceId: device.id,
+                                    originalIp: node.ip,
+                                    currentIp: effectiveIp,
+                                  })}
+                                >
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      fontFamily: 'monospace',
+                                      fontSize: '0.65rem',
+                                      color: ipModified ? 'warning.main' : 'text.secondary',
+                                    }}
+                                  >
+                                    {effectiveIp}
+                                  </Typography>
+                                  {ipModified && (
+                                    <WarningIcon sx={{ fontSize: 12, color: 'warning.main' }} />
+                                  )}
+                                  <EditIcon sx={{ fontSize: 10, color: 'text.disabled', ml: 'auto' }} />
+                                </Box>
+                              )}
+                            </Box>
                           )
                         })}
                       </Box>
