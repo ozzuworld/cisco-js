@@ -30,6 +30,7 @@ import {
   Cancel,
   AccessTime,
   Schedule,
+  BugReport,
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { jobService, JobStatusResponse, Artifact } from '@/services/jobService'
@@ -174,6 +175,24 @@ export default function JobDetails() {
   // Calculate total size
   const totalSize = artifacts.reduce((sum, a) => sum + a.size_bytes, 0)
 
+  // Format debug level for display
+  const formatDebugLevel = (level?: string): string => {
+    switch (level) {
+      case 'basic': return 'Basic'
+      case 'detailed': return 'Detailed'
+      case 'verbose': return 'Verbose'
+      default: return 'Basic'
+    }
+  }
+
+  const getDebugLevelColor = (level?: string): 'default' | 'info' | 'warning' => {
+    switch (level) {
+      case 'detailed': return 'info'
+      case 'verbose': return 'warning'
+      default: return 'default'
+    }
+  }
+
   if (isLoading && !jobStatus) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8 }}>
@@ -285,6 +304,18 @@ export default function JobDetails() {
               <Grid item xs={6} sm={4}>
                 <Typography variant="caption" color="text.secondary">Total Nodes</Typography>
                 <Typography variant="body1">{jobStatus?.total_nodes || 0}</Typography>
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <BugReport fontSize="small" color="action" />
+                  <Typography variant="caption" color="text.secondary">Debug Level</Typography>
+                </Box>
+                <Chip
+                  size="small"
+                  label={formatDebugLevel(jobStatus?.debug_level)}
+                  color={getDebugLevelColor(jobStatus?.debug_level)}
+                  sx={{ mt: 0.5 }}
+                />
               </Grid>
               <Grid item xs={6} sm={4}>
                 <Typography variant="caption" color="text.secondary">Duration</Typography>

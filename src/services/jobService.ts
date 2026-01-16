@@ -1,5 +1,5 @@
 import { apiClient } from './api'
-import type { Job, JobDetails, CreateJobRequest, PaginatedResponse } from '@/types'
+import type { Job, JobDetails, CreateJobRequest, PaginatedResponse, DebugLevel } from '@/types'
 
 // Backend response types (snake_case)
 interface BackendJobSummary {
@@ -40,6 +40,7 @@ export interface JobStatusResponse {
   started_at?: string
   completed_at?: string
   profile: string
+  debug_level?: DebugLevel  // basic, detailed, verbose
   nodes: NodeJobStatus[]
   total_nodes: number
   completed_nodes: number
