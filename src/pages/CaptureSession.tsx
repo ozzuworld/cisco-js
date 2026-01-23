@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -68,17 +68,21 @@ import {
 } from '@mui/icons-material'
 import { useSnackbar } from 'notistack'
 import { captureService } from '@/services'
+import {
+  useCaptureSessions,
+  useCaptureSessionStatus,
+  useStartCaptureSession,
+  useStopCaptureSession,
+  useDeleteCaptureSession,
+} from '@/hooks'
 import type {
   CaptureDeviceType,
   CaptureSessionStatus,
   CaptureTargetStatus,
   CaptureTargetInfo,
-  CaptureSessionInfo,
   CaptureSessionStatusResponse,
 } from '@/types'
 import {
-  shouldPollCaptureSession,
-  getSessionPollingInterval,
   canDownloadSession,
   defaultCaptureInterfaces,
   defaultCapturePorts,
@@ -152,8 +156,6 @@ export default function CaptureSession() {
   const [isCapturing, setIsCapturing] = useState(false)
 
   // History
-  const [sessions, setSessions] = useState<CaptureSessionInfo[]>([])
-  const [isLoadingSessions, setIsLoadingSessions] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
 
   // Settings section collapsed state
@@ -162,58 +164,51 @@ export default function CaptureSession() {
   // Countdown timer
   const [countdown, setCountdown] = useState<{ elapsed: number; remaining: number } | null>(null)
 
-  // Load session history
-  const loadSessions = useCallback(async () => {
-    setIsLoadingSessions(true)
-    try {
-      const response = await captureService.getSessions(20)
-      setSessions(response.sessions || [])
-    } catch (error) {
-      console.error('Failed to load sessions:', error)
-    } finally {
-      setIsLoadingSessions(false)
-    }
-  }, [])
+  // Load session history using React Query
+  const {
+    data: sessionsData,
+    isLoading: isLoadingSessions,
+    refetch: refetchSessions,
+  } = useCaptureSessions(20)
+  const sessions = sessionsData?.sessions || []
 
+  // Poll active session using React Query
+  const { data: activeSessionData } = useCaptureSessionStatus(
+    activeSession?.session?.session_id,
+    !!activeSession?.session
+  )
+
+  // Mutations
+  const startSessionMutation = useStartCaptureSession()
+  const stopSessionMutation = useStopCaptureSession()
+  const deleteSessionMutation = useDeleteCaptureSession()
+
+  // Update active session when polling data changes
   useEffect(() => {
-    loadSessions()
-  }, [loadSessions])
+    if (activeSessionData) {
+      setActiveSession(activeSessionData)
 
-  // Poll active session
-  useEffect(() => {
-    if (!activeSession?.session) return
+      // Update countdown during capturing
+      if (activeSessionData.elapsed_sec !== undefined && activeSessionData.remaining_sec !== undefined) {
+        setCountdown({ elapsed: activeSessionData.elapsed_sec, remaining: activeSessionData.remaining_sec })
+      }
 
-    const status = activeSession.session.status
-    if (!shouldPollCaptureSession(status)) return
-
-    const interval = getSessionPollingInterval(status)
-    const timer = setTimeout(async () => {
-      try {
-        const response = await captureService.getSessionStatus(activeSession.session.session_id)
-        setActiveSession(response)
-
-        // Update countdown during capturing
-        if (response.elapsed_sec !== undefined && response.remaining_sec !== undefined) {
-          setCountdown({ elapsed: response.elapsed_sec, remaining: response.remaining_sec })
-        }
-
-        // Check if completed
-        if (canDownloadSession(response.session.status)) {
+      // Check if completed
+      if (canDownloadSession(activeSessionData.session.status)) {
+        if (isCapturing) {
           enqueueSnackbar('Capture session completed! Downloads ready.', { variant: 'success' })
           setIsCapturing(false)
-          loadSessions()
-        } else if (response.session.status === 'failed') {
+          refetchSessions()
+        }
+      } else if (activeSessionData.session.status === 'failed') {
+        if (isCapturing) {
           enqueueSnackbar('Capture session failed', { variant: 'error' })
           setIsCapturing(false)
-          loadSessions()
+          refetchSessions()
         }
-      } catch (error) {
-        console.error('Failed to poll session:', error)
       }
-    }, interval)
-
-    return () => clearTimeout(timer)
-  }, [activeSession, enqueueSnackbar, loadSessions])
+    }
+  }, [activeSessionData, isCapturing, enqueueSnackbar, refetchSessions])
 
   const handleDeviceTypeChange = (type: CaptureDeviceType) => {
     setNewDeviceType(type)
@@ -269,7 +264,7 @@ export default function CaptureSession() {
     setIsCapturing(true)
 
     try {
-      const response = await captureService.startSession({
+      const response = await startSessionMutation.mutateAsync({
         name: sessionName || undefined,
         duration_sec: duration,
         filter: filterHost || filterPort ? {
@@ -286,7 +281,7 @@ export default function CaptureSession() {
         })),
       })
 
-      // Start polling
+      // Fetch initial status to start polling
       const statusResponse = await captureService.getSessionStatus(response.session_id)
       setActiveSession(statusResponse)
       setCountdown(null)
@@ -308,7 +303,7 @@ export default function CaptureSession() {
 
     setIsStopping(true)
     try {
-      await captureService.stopSession(activeSession.session.session_id)
+      await stopSessionMutation.mutateAsync(activeSession.session.session_id)
       enqueueSnackbar('Stop signal sent', { variant: 'info' })
     } catch (error) {
       enqueueSnackbar(
@@ -327,9 +322,9 @@ export default function CaptureSession() {
 
   const handleDeleteSession = async (sessionId: string) => {
     try {
-      await captureService.deleteSession(sessionId)
+      await deleteSessionMutation.mutateAsync(sessionId)
       enqueueSnackbar('Session deleted', { variant: 'success' })
-      loadSessions()
+      refetchSessions()
     } catch {
       enqueueSnackbar('Failed to delete session', { variant: 'error' })
     }
@@ -1468,7 +1463,7 @@ export default function CaptureSession() {
               <Button
                 size="small"
                 startIcon={<Refresh />}
-                onClick={loadSessions}
+                onClick={() => refetchSessions()}
                 disabled={isLoadingSessions}
                 sx={{ color: ACCENT_COLOR }}
               >

@@ -1,6 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { captureService } from '@/services'
-import type { StartCaptureRequest, CaptureInfo, CaptureListResponse } from '@/types'
+import type {
+  StartCaptureRequest,
+  CaptureInfo,
+  CaptureListResponse,
+  StartCaptureSessionRequest,
+  CaptureSessionStatusResponse,
+  CaptureSessionListResponse,
+} from '@/types'
+import { shouldPollCaptureSession, getSessionPollingInterval } from '@/types'
 
 /**
  * Hook to get all captures
@@ -71,6 +79,86 @@ export function useDeleteCapture() {
     mutationFn: (captureId: string) => captureService.deleteCapture(captureId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['captures'] })
+    },
+  })
+}
+
+// ==========================================
+// Capture Session Hooks
+// ==========================================
+
+/**
+ * Hook to get all capture sessions
+ */
+export function useCaptureSessions(limit = 50) {
+  return useQuery<CaptureSessionListResponse>({
+    queryKey: ['capture-sessions', limit],
+    queryFn: () => captureService.getSessions(limit),
+    refetchInterval: 10000, // Poll every 10 seconds for session list updates
+  })
+}
+
+/**
+ * Hook to get a specific capture session's status
+ */
+export function useCaptureSessionStatus(sessionId: string | undefined, enabled = true) {
+  return useQuery<CaptureSessionStatusResponse>({
+    queryKey: ['capture-session', sessionId],
+    queryFn: () => captureService.getSessionStatus(sessionId!),
+    enabled: enabled && !!sessionId,
+    refetchInterval: (query) => {
+      const session = query.state.data?.session
+      if (!session) return false
+
+      // Use the session's polling logic
+      if (!shouldPollCaptureSession(session.status)) {
+        return false
+      }
+
+      return getSessionPollingInterval(session.status)
+    },
+  })
+}
+
+/**
+ * Hook to start a new capture session
+ */
+export function useStartCaptureSession() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (request: StartCaptureSessionRequest) => captureService.startSession(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['capture-sessions'] })
+    },
+  })
+}
+
+/**
+ * Hook to stop a running capture session
+ */
+export function useStopCaptureSession() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (sessionId: string) => captureService.stopSession(sessionId),
+    onSuccess: (_, sessionId) => {
+      queryClient.invalidateQueries({ queryKey: ['capture-session', sessionId] })
+      queryClient.invalidateQueries({ queryKey: ['capture-sessions'] })
+    },
+  })
+}
+
+/**
+ * Hook to delete a capture session
+ */
+export function useDeleteCaptureSession() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (sessionId: string) => captureService.deleteSession(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['capture-sessions'] })
     },
   })
 }
